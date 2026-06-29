@@ -1,0 +1,17 @@
+import { Sidebar } from "@/components/layout/sidebar";
+import { Topbar } from "@/components/layout/topbar";
+import { DashboardGate } from "@/components/layout/dashboard-gate";
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <DashboardGate>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <div className="flex flex-1 flex-col">
+          <Topbar />
+          <main className="flex-1 p-6">{children}</main>
+        </div>
+      </div>
+    </DashboardGate>
+  );
+}
