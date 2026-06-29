@@ -1,0 +1,151 @@
+"use client";
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { getPocketBase } from "@/lib/pocketbase";
+import { inventorySchema } from "@/lib/schemas";
+import { toast } from "@/components/ui/toaster";
+import type { InventoryLocation, InventoryUnit, ProjectsRecord } from "@/lib/types";
+
+export function InventoryForm({
+  projects,
+  defaultProjectId,
+}: {
+  projects: ProjectsRecord[];
+  defaultProjectId?: string;
+}) {
+  const router = useRouter();
+  const [submitting, setSubmitting] = React.useState(false);
+  const [unit, setUnit] = React.useState<InventoryUnit>("pieces");
+  const [location, setLocation] = React.useState<InventoryLocation>("warehouse");
+  const [project, setProject] = React.useState<string>(defaultProjectId ?? projects[0]?.id ?? "");
+
+  React.useEffect(() => {
+    if (!project && projects.length > 0) setProject(projects[0].id);
+  }, [projects, project]);
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSubmitting(true);
+    const fd = new FormData(e.currentTarget);
+    const rawCost = fd.get("cost_per_unit");
+    const parsed = inventorySchema.safeParse({
+      item_name: fd.get("item_name"),
+      quantity: fd.get("quantity"),
+      unit,
+      location,
+      cost_per_unit: rawCost === "" ? undefined : rawCost,
+      project,
+    });
+    if (!parsed.success) {
+      toast({
+        title: "Validation error",
+        description: parsed.error.issues[0]?.message,
+        variant: "destructive",
+      });
+      setSubmitting(false);
+      return;
+    }
+    try {
+      const pb = getPocketBase();
+      const userId = pb.authStore.model?.id;
+      if (!userId) throw new Error("Not authenticated");
+      await pb.collection("inventory").create({
+        ...parsed.data,
+        last_updated: new Date().toISOString(),
+        user: userId,
+      } as never);
+      toast({ title: "Item added" });
+      (e.target as HTMLFormElement).reset();
+      router.refresh();
+      window.location.reload();
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Save failed",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form
+      className="grid gap-3 rounded-md border p-4 sm:grid-cols-2 lg:grid-cols-3"
+      onSubmit={onSubmit}
+    >
+      <div className="grid gap-2">
+        <Label htmlFor="item">Item name</Label>
+        <Input id="item" name="item_name" required />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="qty">Quantity</Label>
+        <Input id="qty" name="quantity" type="number" min="0" step="0.01" required />
+      </div>
+      <div className="grid gap-2">
+        <Label>Unit</Label>
+        <Select value={unit} onValueChange={(v) => setUnit(v as InventoryUnit)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(["pieces", "lbs", "kg", "sqft", "sqm"] as InventoryUnit[]).map((u) => (
+              <SelectItem key={u} value={u}>
+                {u}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid gap-2">
+        <Label>Location</Label>
+        <Select value={location} onValueChange={(v) => setLocation(v as InventoryLocation)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(["warehouse", "job_site", "in_transit"] as InventoryLocation[]).map((l) => (
+              <SelectItem key={l} value={l}>
+                {l.replace("_", " ")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="cost">Cost per unit (USD)</Label>
+        <Input id="cost" name="cost_per_unit" type="number" min="0" step="0.01" />
+      </div>
+      <div className="grid gap-2">
+        <Label>Project</Label>
+        <Select value={project} onValueChange={setProject}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select project" />
+          </SelectTrigger>
+          <SelectContent>
+            {projects.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="sm:col-span-2 lg:col-span-3">
+        <Button type="submit" disabled={submitting}>
+          {submitting ? "Saving…" : "Add item"}
+        </Button>
+      </div>
+    </form>
+  );
+}

@@ -26,7 +26,7 @@ export function DocumentList({ documents }: { documents: DocumentsRecord[] }) {
       await getPocketBase().collection("documents").delete(id);
       toast({ title: "Deleted" });
       router.refresh();
-      location.reload();
+      window.location.reload();
     } catch (err) {
       toast({
         title: "Error",

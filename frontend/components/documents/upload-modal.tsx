@@ -76,7 +76,7 @@ export function UploadModal({ projects }: { projects: ProjectsRecord[] }) {
       toast({ title: "Uploaded", description: parsed.data.name });
       setOpen(false);
       router.refresh();
-      location.reload(); // refresh SWR cache
+      window.location.reload(); // refresh SWR cache
     } catch (err) {
       toast({
         title: "Upload failed",
