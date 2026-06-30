@@ -1,46 +1,83 @@
 "use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, FileText, Package } from "lucide-react";
+import {
+  ClipboardList,
+  FolderKanban,
+  Settings,
+  Truck,
+  Files,
+  LayoutDashboard,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const items = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/documents", label: "Documents", icon: FileText },
-  { href: "/inventory", label: "Inventory", icon: Package },
+type NavItem = { href: string; label: string; Icon: React.ComponentType<{ className?: string }> };
+
+const items: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
+  { href: "/projects", label: "Projects", Icon: FolderKanban },
+  { href: "/documents", label: "Documents", Icon: Files },
+  { href: "/inventory", label: "Inventory", Icon: Truck },
+  { href: "/settings", label: "Settings", Icon: Settings },
 ];
 
-export function Sidebar() {
+export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
-    <aside className="hidden border-r bg-muted/30 md:block md:w-60">
-      <div className="flex h-14 items-center border-b px-6">
-        <Link href="/" className="text-lg font-semibold">
-          GC Pallet
-        </Link>
-      </div>
-      <nav className="space-y-1 p-3">
-        {items.map((it) => {
-          const active =
-            pathname === it.href || (it.href !== "/" && pathname?.startsWith(it.href));
-          return (
-            <Link
-              key={it.href}
-              href={it.href}
+    <nav className="flex flex-col gap-1 px-3 py-4">
+      {items.map(({ href, label, Icon }) => {
+        const isActive = href === "/" ? pathname === "/" : pathname?.startsWith(href);
+        return (
+          <Link
+            key={href}
+            href={href}
+            onClick={onNavigate}
+            aria-current={isActive ? "page" : undefined}
+            className={cn(
+              "group flex items-center gap-3 rounded-md px-3 py-2 text-body-strong transition focus-ring",
+              isActive
+                ? "bg-gcpallet-primary text-gcpallet-primary-foreground shadow-sm"
+                : "text-gcpallet-secondary-foreground hover:bg-gcpallet-muted"
+            )}
+          >
+            <Icon
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-accent hover:text-accent-foreground"
+                "h-4 w-4 shrink-0",
+                isActive ? "text-gcpallet-primary-foreground" : "text-gcpallet-muted-foreground group-hover:text-gcpallet-secondary-foreground"
               )}
-            >
-              <it.icon className="h-4 w-4" />
-              {it.label}
-            </Link>
-          );
-        })}
-      </nav>
+            />
+            <span className="truncate">{label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function SidebarHeader() {
+  return (
+    <div className="flex items-center gap-2 border-b border-border px-4 py-4">
+      <span className="flex h-9 w-9 items-center justify-center rounded-md bg-gcpallet-primary text-gcpallet-primary-foreground shadow-sm">
+        <ClipboardList className="h-5 w-5" aria-hidden />
+      </span>
+      <span className="flex flex-col leading-tight">
+        <span className="text-label uppercase tracking-wider text-gcpallet-muted-foreground">
+          GC Pallet
+        </span>
+        <span className="text-body-strong text-gcpallet-card-foreground">
+          Operations Hub
+        </span>
+      </span>
+    </div>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:border-border md:bg-gcpallet-card">
+      <SidebarHeader />
+      <SidebarNav />
     </aside>
   );
 }

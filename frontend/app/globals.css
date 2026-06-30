@@ -5,51 +5,166 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
+    --foreground: 222 47% 11%;
+
     --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card-foreground: 222 47% 11%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
-    --primary: 24 95% 53%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 16 95% 53%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 24 95% 53%;
-    --radius: 0.5rem;
+
+    --secondary: 214 32% 91%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 214 32% 95%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 16 100% 92%;
+    --accent-foreground: 16 60% 24%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 36%;
+    --warning: 38 92% 50%;
+    --info: 221 83% 53%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 16 95% 53%;
+
+    --radius: 0.75rem;
+
+    /* Brand palette — GC Pallet Operations Hub */
+    --gcpallet-primary: 16 95% 53%;        /* #F26B2B */
+    --gcpallet-primary-foreground: 0 0% 100%;
+    --gcpallet-accent: 22 100% 92%;        /* #FFE3D1 */
+    --gcpallet-accent-foreground: 18 65% 23%;
+    --gcpallet-secondary: 216 22% 95%;     /* #EEF1F5 */
+    --gcpallet-secondary-foreground: 215 25% 17%;
+    --gcpallet-muted: 217 25% 95%;         /* #EEF2F7 */
+    --gcpallet-muted-foreground: 215 16% 47%;
+    --gcpallet-card: 0 0% 100%;           /* #FFFFFF */
+    --gcpallet-card-foreground: 222 47% 11%;
+    --gcpallet-info-soft: 218 100% 96%;    /* #E5F0FF */
+    --gcpallet-info-soft-foreground: 224 76% 40%;
+
+    /* Semantic soft fills + foregrounds (for badges, alerts) */
+    --success-soft: 138 76% 93%;
+    --success-soft-foreground: 142 72% 22%;
+    --warning-soft: 48 96% 89%;
+    --warning-soft-foreground: 26 80% 30%;
+    --info-soft: 214 95% 92%;
+    --info-soft-foreground: 224 76% 32%;
+    --destructive-soft: 0 86% 95%;
+    --destructive-soft-foreground: 0 74% 35%;
+
+    /* Chart palette — used by recharts via inline `stroke`/`fill` on `var(...)`. */
+    --chart-1: 16 95% 53%;   /* brand primary  (planning/active buckets) */
+    --chart-2: 217 91% 60%;  /* blue            (active progress) */
+    --chart-3: 142 71% 36%;  /* green           (completed) */
+    --chart-4: 38 92% 50%;   /* amber           (on hold) */
+    --chart-5: 271 81% 56%;  /* violet          (draft) */
+    --chart-6: 199 89% 48%;  /* sky             (procurement) */
+    --chart-7: 195 53% 70%;  /* muted teal      (warehouse) */
+    --chart-8: 340 82% 62%;  /* rose            (job_site) */
+    --chart-grid: 214 32% 91%;
+    --chart-axis: 215 16% 47%;
   }
+
   .dark {
-    --background: 222.2 47.4% 11.2%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 47.4% 11.2%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 47.4% 11.2%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 24 95% 53%;
+    --background: 222 41% 8%;
+    --foreground: 210 20% 96%;
+
+    --card: 222 35% 11%;
+    --card-foreground: 210 20% 96%;
+
+    --popover: 222 35% 11%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 18 95% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 24 95% 53%;
+
+    --secondary: 217 24% 18%;
+    --secondary-foreground: 210 20% 96%;
+
+    --muted: 217 24% 16%;
+    --muted-foreground: 215 18% 65%;
+
+    --accent: 18 60% 22%;
+    --accent-foreground: 22 100% 88%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 60% 48%;
+    --warning: 38 92% 60%;
+    --info: 217 90% 65%;
+
+    --border: 217 24% 22%;
+    --input: 217 24% 22%;
+    --ring: 18 95% 60%;
+
+    /* Dark brand palette */
+    --gcpallet-primary: 18 95% 60%;
+    --gcpallet-primary-foreground: 0 0% 100%;
+    --gcpallet-accent: 18 60% 22%;
+    --gcpallet-accent-foreground: 22 100% 88%;
+    --gcpallet-secondary: 217 24% 18%;
+    --gcpallet-secondary-foreground: 210 20% 96%;
+    --gcpallet-muted: 217 24% 14%;
+    --gcpallet-muted-foreground: 215 18% 65%;
+    --gcpallet-card: 222 35% 11%;
+    --gcpallet-card-foreground: 210 20% 96%;
+    --gcpallet-info-soft: 217 60% 22%;
+    --gcpallet-info-soft-foreground: 217 90% 78%;
+
+    --success-soft: 142 50% 18%;
+    --success-soft-foreground: 142 70% 78%;
+    --warning-soft: 38 50% 18%;
+    --warning-soft-foreground: 38 95% 78%;
+    --info-soft: 217 60% 22%;
+    --info-soft-foreground: 217 90% 78%;
+    --destructive-soft: 0 60% 22%;
+    --destructive-soft-foreground: 0 80% 85%;
+
+    /* Dark chart palette — slightly desaturated, brighter endpoints. */
+    --chart-1: 18 95% 60%;
+    --chart-2: 217 91% 70%;
+    --chart-3: 142 60% 56%;
+    --chart-4: 38 95% 65%;
+    --chart-5: 271 80% 70%;
+    --chart-6: 199 89% 65%;
+    --chart-7: 195 53% 60%;
+    --chart-8: 340 82% 70%;
+    --chart-grid: 217 24% 22%;
+    --chart-axis: 215 18% 65%;
   }
+
   * {
     @apply border-border;
   }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans text-body;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  table {
+    @apply tabular-nums;
+  }
+}
+
+@layer utilities {
+  .focus-ring {
+    @apply outline-none ring-0 focus-visible:ring-2 focus-visible:ring-gcpallet-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 }

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { getPocketBase } from "@/lib/pocketbase";
 import { inventorySchema } from "@/lib/schemas";
-import { toast } from "@/components/ui/toaster";
+import { toastVariants_enum as toast } from "@/components/ui/toaster";
 import type { InventoryLocation, InventoryUnit, ProjectsRecord } from "@/lib/types";
 
 export function InventoryForm({
@@ -47,11 +47,7 @@ export function InventoryForm({
       project,
     });
     if (!parsed.success) {
-      toast({
-        title: "Validation error",
-        description: parsed.error.issues[0]?.message,
-        variant: "destructive",
-      });
+      toast.destructive("Validation error", parsed.error.issues[0]?.message);
       setSubmitting(false);
       return;
     }
@@ -64,16 +60,12 @@ export function InventoryForm({
         last_updated: new Date().toISOString(),
         user: userId,
       } as never);
-      toast({ title: "Item added" });
+      toast.success("Item added");
       (e.target as HTMLFormElement).reset();
       router.refresh();
       window.location.reload();
     } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Save failed",
-        variant: "destructive",
-      });
+      toast.destructive("Error", err instanceof Error ? err.message : "Save failed");
     } finally {
       setSubmitting(false);
     }

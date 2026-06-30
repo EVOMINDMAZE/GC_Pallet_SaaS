@@ -6,7 +6,7 @@ export const projectSchema = z.object({
   budget: z.coerce.number().nonnegative("Must be ≥ 0").optional().or(z.literal("")),
   start_date: z.string().optional().or(z.literal("")),
   end_date: z.string().optional().or(z.literal("")),
-  status: z.enum(["planning", "active", "completed", "on_hold"]),
+  status: z.enum(["planning", "active", "completed", "on_hold", "draft", "procurement"]),
 });
 export type ProjectInput = z.infer<typeof projectSchema>;
 

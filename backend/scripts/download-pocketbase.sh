@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-VERSION="0.20.7"
+VERSION="0.22.46"
 OUT="$(dirname "$0")/../pocketbase"
 URL="https://github.com/pocketbase/pocketbase/releases/download/v${VERSION}/pocketbase_${VERSION}_linux_amd64.zip"
 TMP="$(mktemp -d)"

@@ -2,7 +2,7 @@
 import * as React from "react";
 import * as ToastPrimitives from "@radix-ui/react-toast";
 import { cva, type VariantProps } from "class-variance-authority";
-import { X } from "lucide-react";
+import { X, CheckCircle2, AlertTriangle, Info, AlertCircle, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ToastProvider = ToastPrimitives.Provider;
@@ -22,13 +22,18 @@ const ToastViewport = React.forwardRef<
 ));
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
+type ToastVariant = "default" | "success" | "warning" | "info" | "destructive";
+
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-4 pr-6 shadow-lg transition-all data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full",
+  "group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-md border p-4 pr-8 shadow-lg transition-all data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full",
   {
     variants: {
       variant: {
-        default: "border bg-background text-foreground",
-        destructive: "destructive border-destructive bg-destructive text-destructive-foreground",
+        default: "border-border bg-background text-foreground",
+        success: "border-success/30 bg-success-soft text-success-soft-foreground",
+        warning: "border-warning/40 bg-warning-soft text-warning-soft-foreground",
+        info: "border-info/30 bg-info-soft text-info-soft-foreground",
+        destructive: "border-destructive/40 bg-destructive-soft text-destructive-soft-foreground",
       },
     },
     defaultVariants: { variant: "default" },
@@ -43,11 +48,27 @@ const Toast = React.forwardRef<
 ));
 Toast.displayName = ToastPrimitives.Root.displayName;
 
+function VariantIcon({ variant }: { variant?: ToastVariant }) {
+  const cls = "h-5 w-5 shrink-0";
+  switch (variant) {
+    case "success":
+      return <CheckCircle2 className={cn(cls, "text-success")} />;
+    case "warning":
+      return <AlertTriangle className={cn(cls, "text-warning")} />;
+    case "info":
+      return <Info className={cn(cls, "text-info")} />;
+    case "destructive":
+      return <AlertCircle className={cn(cls, "text-destructive")} />;
+    default:
+      return <Bell className={cn(cls, "text-muted-foreground")} />;
+  }
+}
+
 const ToastTitle = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Title>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Title>
 >((props, ref) => (
-  <ToastPrimitives.Title ref={ref} className={cn("text-sm font-semibold", (props as { className?: string }).className)} {...props} />
+  <ToastPrimitives.Title ref={ref} className={cn("text-body-strong", (props as { className?: string }).className)} {...props} />
 ));
 ToastTitle.displayName = ToastPrimitives.Title.displayName;
 
@@ -55,7 +76,7 @@ const ToastDescription = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Description>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Description>
 >((props, ref) => (
-  <ToastPrimitives.Description ref={ref} className={cn("text-sm opacity-90", (props as { className?: string }).className)} {...props} />
+  <ToastPrimitives.Description ref={ref} className={cn("text-sm opacity-90 leading-relaxed", (props as { className?: string }).className)} {...props} />
 ));
 ToastDescription.displayName = ToastPrimitives.Description.displayName;
 
@@ -66,7 +87,7 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      "absolute right-1 top-1 rounded-md p-1 text-foreground/50 opacity-100 transition-opacity hover:text-foreground focus:outline-none focus:ring-1",
+      "absolute right-1 top-1 rounded-md p-1 opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-gcpallet-primary",
       className
     )}
     toast-close=""
@@ -84,6 +105,6 @@ export {
   ToastTitle,
   ToastDescription,
   ToastClose,
-  type ToastProps,
+  VariantIcon,
+  type ToastVariant,
 };
-import type { ToastProps } from "@radix-ui/react-toast";

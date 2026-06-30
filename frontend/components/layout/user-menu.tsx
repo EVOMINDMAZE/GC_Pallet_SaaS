@@ -1,6 +1,8 @@
 "use client";
+import * as React from "react";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,6 +19,10 @@ import { toast } from "@/components/ui/toaster";
 export function UserMenu() {
   const { user } = useAuth();
   const router = useRouter();
+  // Defer user-dependent label until after mount so the server
+  // (no auth context) and first client paint match exactly.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
 
   async function logout() {
     const pb = getPocketBase();
@@ -30,16 +36,22 @@ export function UserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
-          {user?.name ?? user?.email ?? "Account"}
+          {mounted ? (user?.name ?? user?.email ?? "Account") : "Account"}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {user && (
+        {mounted && user && (
           <>
             <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
           </>
         )}
+        <DropdownMenuItem asChild>
+          <Link href="/settings">
+            <UserCog className="mr-2 h-4 w-4" /> Account settings
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={logout}>
           <LogOut className="mr-2 h-4 w-4" /> Sign out
         </DropdownMenuItem>

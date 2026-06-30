@@ -17,6 +17,15 @@ import { projectSchema, type ProjectInput } from "@/lib/schemas";
 import { toast } from "@/components/ui/toaster";
 import type { ProjectsRecord, ProjectStatus } from "@/lib/types";
 
+const STATUS_LABELS: Record<ProjectStatus, string> = {
+  planning: "Planning",
+  active: "Active",
+  completed: "Completed",
+  on_hold: "On hold",
+  draft: "Draft",
+  procurement: "Procurement",
+};
+
 export function ProjectForm({ initial, projectId }: { initial?: ProjectsRecord; projectId?: string }) {
   const router = useRouter();
   const [submitting, setSubmitting] = React.useState(false);
@@ -44,17 +53,16 @@ export function ProjectForm({ initial, projectId }: { initial?: ProjectsRecord; 
 
       if (projectId) {
         await pb.collection("projects").update(projectId, data);
-        toast({ title: "Project updated" });
+        toast({ title: "Project updated", variant: "success" });
       } else {
         await pb.collection("projects").create({ ...data, user: userId });
-        toast({ title: "Project created" });
+        toast({ title: "Project created", variant: "success" });
       }
-      router.push("/projects");
-      router.refresh();
+      window.location.href = "/projects";
     } catch (err) {
       toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Save failed",
+        title: "Save failed",
+        description: err instanceof Error ? err.message : "Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -63,31 +71,37 @@ export function ProjectForm({ initial, projectId }: { initial?: ProjectsRecord; 
   }
 
   return (
-    <Card className="max-w-2xl">
-      <CardHeader>
-        <CardTitle>{projectId ? "Edit project" : "New project"}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form className="space-y-4" onSubmit={onSubmit}>
+    <form className="space-y-6" onSubmit={onSubmit}>
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>{projectId ? "Edit project" : "New project"}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
           <div className="grid gap-2">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" name="name" required defaultValue={initial?.name} />
+            <Label htmlFor="name">Project name</Label>
+            <Input id="name" name="name" required defaultValue={initial?.name} placeholder="Riverside Tower" />
           </div>
+
           <div className="grid gap-2">
-            <Label htmlFor="address">Address</Label>
-            <Input id="address" name="address" defaultValue={initial?.address} />
+            <Label htmlFor="address">Site address</Label>
+            <Input id="address" name="address" defaultValue={initial?.address} placeholder="123 Riverside Dr, Springfield" />
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="budget">Budget (USD)</Label>
-              <Input
-                id="budget"
-                name="budget"
-                type="number"
-                min="0"
-                step="0.01"
-                defaultValue={initial?.budget ?? ""}
-              />
+              <Label htmlFor="budget">Budget</Label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                <Input
+                  id="budget"
+                  name="budget"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  defaultValue={initial?.budget ?? ""}
+                  className="pl-7"
+                />
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="status">Status</Label>
@@ -96,40 +110,38 @@ export function ProjectForm({ initial, projectId }: { initial?: ProjectsRecord; 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(["planning", "active", "completed", "on_hold"] as ProjectStatus[]).map((s) => (
+                  {(Object.keys(STATUS_LABELS) as ProjectStatus[]).map((s) => (
                     <SelectItem key={s} value={s}>
-                      {s.replace("_", " ")}
+                      {STATUS_LABELS[s]}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="start_date">Start date</Label>
-              <Input
-                id="start_date"
-                name="start_date"
-                type="date"
-                defaultValue={initial?.start_date}
-              />
+              <Input id="start_date" name="start_date" type="date" defaultValue={initial?.start_date} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="end_date">End date</Label>
-              <Input
-                id="end_date"
-                name="end_date"
-                type="date"
-                defaultValue={initial?.end_date}
-              />
+              <Input id="end_date" name="end_date" type="date" defaultValue={initial?.end_date} />
             </div>
           </div>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Saving…" : "Save project"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Sticky footer */}
+      <div className="sticky bottom-0 -mx-6 mt-2 flex items-center justify-end gap-3 border-t border-border bg-background/85 px-6 py-4 backdrop-blur">
+        <Button type="button" variant="outline" onClick={() => router.back()} disabled={submitting}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="primary" disabled={submitting}>
+          {submitting ? "Saving…" : "Save project"}
+        </Button>
+      </div>
+    </form>
   );
 }

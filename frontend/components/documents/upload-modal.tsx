@@ -7,7 +7,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,13 +20,19 @@ import {
 } from "@/components/ui/select";
 import { getPocketBase } from "@/lib/pocketbase";
 import { documentSchema } from "@/lib/schemas";
-import { toast } from "@/components/ui/toaster";
-import { Plus } from "lucide-react";
+import { toastVariants_enum as toast } from "@/components/ui/toaster";
 import type { DocumentCategory, ProjectsRecord } from "@/lib/types";
 
-export function UploadModal({ projects }: { projects: ProjectsRecord[] }) {
+export function UploadModal({
+  open,
+  onOpenChange,
+  projects,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  projects: ProjectsRecord[];
+}) {
   const router = useRouter();
-  const [open, setOpen] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [category, setCategory] = React.useState<DocumentCategory>("contract");
   const [project, setProject] = React.useState<string>(projects[0]?.id ?? "");
@@ -48,16 +53,12 @@ export function UploadModal({ projects }: { projects: ProjectsRecord[] }) {
       file,
     });
     if (!parsed.success) {
-      toast({
-        title: "Validation error",
-        description: parsed.error.issues[0]?.message ?? "Check inputs",
-        variant: "destructive",
-      });
+      toast.destructive("Validation error", parsed.error.issues[0]?.message);
       setSubmitting(false);
       return;
     }
     if (!file) {
-      toast({ title: "File required", variant: "destructive" });
+      toast.destructive("File required");
       setSubmitting(false);
       return;
     }
@@ -73,28 +74,19 @@ export function UploadModal({ projects }: { projects: ProjectsRecord[] }) {
       fd2.append("user", userId);
       fd2.append("file", file);
       await pb.collection("documents").create(fd2);
-      toast({ title: "Uploaded", description: parsed.data.name });
-      setOpen(false);
+      toast.success("Uploaded", parsed.data.name);
+      onOpenChange(false);
       router.refresh();
-      window.location.reload(); // refresh SWR cache
+      window.location.reload();
     } catch (err) {
-      toast({
-        title: "Upload failed",
-        description: err instanceof Error ? err.message : "Error",
-        variant: "destructive",
-      });
+      toast.destructive("Upload failed", err instanceof Error ? err.message : "Error");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> Upload Document
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Upload document</DialogTitle>
@@ -103,7 +95,7 @@ export function UploadModal({ projects }: { projects: ProjectsRecord[] }) {
         <form className="space-y-4" onSubmit={onSubmit}>
           <div className="grid gap-2">
             <Label htmlFor="doc-name">Name</Label>
-            <Input id="doc-name" name="name" required />
+            <Input id="doc-name" name="name" required placeholder="Building Permit #42" />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="doc-project">Project</Label>
@@ -141,7 +133,7 @@ export function UploadModal({ projects }: { projects: ProjectsRecord[] }) {
             <Label htmlFor="doc-file">File (PDF or image)</Label>
             <Input id="doc-file" name="file" type="file" accept="application/pdf,image/*" required />
           </div>
-          <Button type="submit" className="w-full" disabled={submitting}>
+          <Button type="submit" variant="primary" className="w-full" disabled={submitting}>
             {submitting ? "Uploading…" : "Upload"}
           </Button>
         </form>

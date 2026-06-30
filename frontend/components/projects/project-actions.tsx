@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { getPocketBase } from "@/lib/pocketbase";
-import { toast } from "@/components/ui/toaster";
+import { toastVariants_enum as toast } from "@/components/ui/toaster";
 
 export function ProjectActions({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -13,15 +13,11 @@ export function ProjectActions({ projectId }: { projectId: string }) {
     try {
       const pb = getPocketBase();
       await pb.collection("projects").delete(projectId);
-      toast({ title: "Project deleted" });
+      toast.success("Project deleted");
       router.push("/projects");
       router.refresh();
     } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Delete failed",
-        variant: "destructive",
-      });
+      toast.destructive("Error", err instanceof Error ? err.message : "Delete failed");
     }
   }
 

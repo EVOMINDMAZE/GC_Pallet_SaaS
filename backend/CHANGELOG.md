@@ -1,3 +1,464 @@
+## v0.22.46
+
+- (_Backported from v0.39.1_) Bumped the min Go GitHub action version to 1.26.4 as it includes some [minor security fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.26.4).
+
+
+## v0.22.45
+
+- (_Backported from v0.38.2_) Updated all `golang.org/x/` packages to cover the recent [security fixes](https://groups.google.com/g/golang-announce/c/PdiGK3xulk4) _(none of them should be a critical issue in PocketBase but nonetheless it is advised to update)_.
+
+
+## v0.22.44
+
+- (Backported from v0.38.1) Force unset the auth state of existing realtime connections on user tokenKey change.
+
+
+## v0.22.43
+
+- (_Backported from v0.38.0_) Bumped min Go GitHub action version to 1.26.3 because it comes with some [minor bug and security fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.26.3).
+
+
+## v0.22.42
+
+- (_Backported from v0.37.4_) Adjusted Bitbucket, GitHub, GitLab and Gitea/Forgejo OAuth2 providers to better reflect recent API updates and doc references.
+    _In case the userinfo data is not sufficient, some of the providers now send a separate list emails request in order to minimize eventual linking security issues caused by custom onpremise setups (e.g. Gitea/Forgejo allows skipping the email verification if an ENV variable is configured)._
+
+- (_Backported from v0.37.4_) ⚠️ Fixed a pre-hijacking OAuth2 linking vulnerability ([#7662](https://github.com/pocketbase/pocketbase/discussions/7662)).
+
+
+## v0.22.41
+
+- (_Backported from v0.36.9_) Updated the Discord `AuthUser.Name` field to use `global_name`.
+
+- (_Backported from v0.36.9_) Updated `modernc.org/sqlite` to v1.48.2 _(vfs and other error path related fixes)_.
+
+- (_Backported from v0.36.9_) Bumped min Go GitHub action version to 1.26.2 because it comes with several [minor security fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.26.2).
+
+
+## v0.22.40
+
+- (_Backported from v0.36.7_) Updated `modernc.org/sqlite` to v1.46.2 and SQLite 3.51.3.
+    _⚠️ SQLite 3.51.3 fixed a [database corruption bug](https://sqlite.org/wal.html#walresetbug) that is very unlikely to happen (with PocketBase even more so because we queue on app level all writes and explicit transactions through a single db connection), but still it is advised to upgrade._
+
+- (_Backported from v0.36.7_) Updated other minor Go and npm deps.
+    _The min Go version in the go.mod of the package was also bumped to Go 1.25.0 because some of the newer dep versions require it._
+
+
+## v0.22.39
+
+- (_Backported from v0.36.6_) Bumped min Go GitHub action version to 1.26.1 because it comes with some [minor bug and security fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.26.1).
+
+
+## v0.22.38
+
+- (_Backported from v0.36.0_) Bumped min Go GitHub action version to 1.25.6 because it comes with some [minor security fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.25.6).
+
+
+## v0.22.37
+
+- (_Backported from v0.34.1_) - Added missing `:` char to the autocomplete regex ([#7353](https://github.com/pocketbase/pocketbase/pull/7353)).
+
+- (_Backported from v0.34.1_) Bumped min Go GitHub action version to 1.25.5 because it comes with some [minor security fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.25.5).
+    _The runner action was also updated to `actions/setup-go@v6` since the previous v5 Go source seems [no longer accessible](https://github.com/actions/setup-go/pull/665#issuecomment-3416693714)._
+
+
+## v0.22.36
+
+- (_Backported from v0.30.2_) Bumped min Go GitHub action version to 1.24.8 since it comes with some [minor security fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.24.8+label%3ACherryPickApproved).
+
+
+## v0.22.35
+
+- (_Backported from v0.29.2_) Bumped min Go GitHub action version to 1.23.12 since it comes with some [minor fixes for the runtime and `database/sql` package](https://github.com/golang/go/issues?q=milestone%3AGo1.23.12+label%3ACherryPickApproved).
+
+
+## v0.22.34
+
+- (_Backported from v0.26.6_) Allow OIDC `email_verified` to be int or boolean string since some OIDC providers like AWS Cognito has non-standard userinfo response ([#6657](https://github.com/pocketbase/pocketbase/pull/6657)).
+
+
+## v0.22.33
+
+- (_Backported from v0.26.3_) Fixed and normalized logs error serialization across common types for more consistent logs error output ([#6631](https://github.com/pocketbase/pocketbase/issues/6631)).
+
+
+## v0.22.32
+
+- (_Backported from v0.26.2_) Updated `golang-jwt/jwt` dependency because it comes with a [minor security fix](https://github.com/golang-jwt/jwt/security/advisories/GHSA-mh63-6h87-95cp).
+
+
+## v0.22.31
+
+- (_Backported from v0.25.5_) Set the current working directory as a default goja script path when executing inline JS strings to allow `require(m)` traversing parent `node_modules` directories.
+
+
+## v0.22.30
+
+- (_Backported from v0.24.4_) Fixed fields extraction for view queries with nested comments ([#6309](https://github.com/pocketbase/pocketbase/discussions/6309)).
+
+- Bumped GitHub action min Go version to 1.23.5 as it comes with some [minor security fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.23.5).
+
+
+## v0.22.29
+
+- (_Backported from v0.23.11_) Upgraded `golang.org/x/net` to 0.33.0 to fix [CVE-2024-45338](https://www.cve.org/CVERecord?id=CVE-2024-45338).
+  _PocketBase uses the vulnerable functions primarily for the auto html->text mail generation, but most applications shouldn't be affected unless you are manually embedding unrestricted user provided value in your mail templates._
+
+
+## v0.22.28
+
+- (_Backported from v0.23.10_) Renew the superuser file token cache when clicking on the thumb preview or download link ([#6137](https://github.com/pocketbase/pocketbase/discussions/6137)).
+
+- (_Backported from v0.23.10_) Upgraded `modernc.org/sqlite` to 1.34.3 to fix "disk io" error on arm64 systems.
+  _If you are extending PocketBase with Go and upgrading with `go get -u` make sure to manually set in your go.mod the `modernc.org/libc` indirect dependency to v1.55.3, aka. the exact same version the driver is using._
+
+
+## v0.22.27
+
+- Instead of unregistering the realtime client(s), just unset their auth state on delete of their related auth record so that the client(s) can receive the `delete` event ([#5898](https://github.com/pocketbase/pocketbase/issues/5898)).
+
+
+## v0.22.26
+
+- (_Backported from v0.23.0-rc_) Added manual WAL checkpoints before creating the zip backup to minimize copying unnecessary data.
+
+
+## v0.22.25
+
+- Refresh the old collections state in the Import UI after successful import submission ([#5861](https://github.com/pocketbase/pocketbase/issues/5861)).
+
+- Added randomized throttle on failed filter list requests as a very rudimentary measure since some security researches raised concern regarding the possibity of eventual side-channel attacks.
+
+
+## v0.22.24
+
+- Delete new uploaded record files in case of record DB persist error ([#5845](https://github.com/pocketbase/pocketbase/issues/5845)).
+
+
+## v0.22.23
+
+- Updated the hooks watcher to account for the case when hooksDir is a symlink ([#5789](https://github.com/pocketbase/pocketbase/issues/5789)).
+
+- _(Backported from v0.23.0-rc)_ Registered a default `http.Server.ErrorLog` handler to report general server connection errors as app Debug level logs (e.g. invalid TLS handshakes caused by bots trying to access your server via its IP or other similar errors).
+
+- Other minor fixes (updated npm dev deps to fix the vulnerabilities warning, added more user friendly realtime topic length error, regenerated JSVM types, etc.)
+
+
+## v0.22.22
+
+- Added deprecation log in case Instagram OAuth2 is used (_related to [#5652](https://github.com/pocketbase/pocketbase/discussions/5652)_).
+
+- Added `update` command warning to prevent unnecessary downloading PocketBase v0.23.0 since it will contain breaking changes.
+
+- Added global JSVM `toString()` helper (_successor of `readerToString()`_) to stringify any value (bool, number, multi-byte array, io.Reader, etc.).
+  _`readerToString` is still available but it is marked as deprecated. You can also use `toString` as replacement for  of `String.fromCharCode` to properly stringify multi-byte unicode characters like emojis._
+    ```js
+    decodeURIComponent(escape(String.fromCharCode(...bytes))) -> toString(bytes)
+    ```
+
+- Updated `aws-sdk-go-v2` and removed deprecated `WithEndpointResolverWithOptions`.
+
+- Backported some of the v0.23.0-rc form validators, fixes and tests.
+
+- Bumped GitHub action min Go version and dependencies.
+
+
+## v0.22.21
+
+- Lock the logs database during backup to prevent `database disk image is malformed` errors in case there is a log write running in the background ([#5541](https://github.com/pocketbase/pocketbase/discussions/5541)).
+
+
+## v0.22.20
+
+- Fixed the Admin UI `isEmpty` check to allow submitting zero uuid, datetime and date strings ([#5398](https://github.com/pocketbase/pocketbase/issues/5398)).
+
+- Updated goja and the other Go deps.
+
+
+## v0.22.19
+
+- Added additional parsing for the Apple OAuth2 `user` token response field to attempt returning the name of the authenticated user ([#5074](https://github.com/pocketbase/pocketbase/discussions/5074#discussioncomment-10317207)).
+  _Note that Apple only returns the user object the first time the user authorizes the app (at least based on [their docs](https://developer.apple.com/documentation/sign_in_with_apple/sign_in_with_apple_js/configuring_your_webpage_for_sign_in_with_apple#3331292))._
+
+
+## v0.22.18
+
+- Improved files delete performance when using the local filesystem by adding a trailing slash to the `DeletePrefix` call to ensure that the list iterator will start "walking" from the prefix directory and not from its parent ([#5246](https://github.com/pocketbase/pocketbase/discussions/5246)).
+
+- Updated Go deps.
+
+
+## v0.22.17
+
+- Updated the `editor` field to use the latest TinyMCE 6.8.4 and enabled `convert_unsafe_embeds:true` by default per the security advisories.
+  _The Admin UI shouldn't be affected by the older TinyMCE because we don't use directly the vulnerable options/plugins and we have a default CSP, but it is recommended to update even just for silencing the CI/CD warnings._
+
+- Disabled mouse selection when changing the sidebar width.
+  _This should also fix the reported Firefox issue when the sidebar width "resets" on mouse release out of the page window._
+
+- Other minor improvements (updated the logs delete check and tests, normalized internal errors formatting, updated Go deps, etc.)
+
+
+## v0.22.16
+
+- Fixed the days calculation for triggering old logs deletion ([#5179](https://github.com/pocketbase/pocketbase/pull/5179); thanks @nehmeroumani).
+  _Note that the previous versions correctly delete only the logs older than the configured setting but due to the typo the delete query is invoked unnecessary on each logs batch write._
+
+
+## v0.22.15
+
+- Added mutex to `tests.TestMailer()` to minimize tests data race warnings ([#5157](https://github.com/pocketbase/pocketbase/issues/5157)).
+
+- Updated goja and the other Go dependencies.
+
+- Bumped the min Go version in the GitHub release action to Go 1.22.5 since it comes with [`net/http` security fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.22.5).
+
+
+## v0.22.14
+
+- Added OAuth2 POST redirect support (in case of `response_mode=form_post`) to allow specifying scopes for the Apple OAuth2 integration.
+
+    Note 1: If you are using the "Manual code exchange" flow with Apple (aka. `authWithOAuth2Code()`), you need to either update your custom
+    redirect handler to accept POST requests OR if you want to keep the old behavior and don't need the Apple user's email - replace in the Apple authorization url `response_mode=form_post` back to `response_mode=query`.
+
+    Note 2: Existing users that have already logged in with Apple may need to revoke their access in order to see the email sharing options as shown in [this screenshot](https://github.com/pocketbase/pocketbase/discussions/5074#discussioncomment-9801855).
+    If you want to force the new consent screen you could register a new Apple OAuth2 app.
+
+- ⚠️ Fixed a security vulnerability related to the OAuth2 email autolinking (thanks to @dalurness for reporting it).
+
+    Just to be safe I've also published a [GitHub security advisory](https://github.com/pocketbase/pocketbase/security/advisories/GHSA-m93w-4fxv-r35v) (_may take some time to show up in the related security databases_).
+
+    In order to be exploited you must have **both** OAuth2 and Password auth methods enabled.
+
+    A possible attack scenario could be:
+    - a malicious actor register with the targeted user's email (it is unverified)
+    - at some later point in time the targeted user stumble on your app and decides to sign-up with OAuth2 (_this step could be also initiated by the attacker by sending an invite email to the targeted user_)
+    - on successful OAuth2 auth we search for an existing PocketBase user matching with the OAuth2 user's email and associate them
+    - because we haven't changed the password of the existing PocketBase user during the linking, the malicious actor has access to the targeted user account and will be able to login with the initially created email/password
+
+    To prevent this for happening we now reset the password for this specific case if the previously created user wasn't verified (an exception to this is if the linking is explicit/manual, aka. when you send `Authorization:TOKEN` with the OAuth2 auth call).
+
+    Additionally to warn users we now send an email alert in case the user has logged in with password but has at least one OAuth2 account linked. It looks something like:
+
+    _Hello,
+    Just to let you know that someone has logged in to your Acme account using a password while you already have OAuth2 GitLab auth linked.
+    If you have recently signed in with a password, you may disregard this email.
+    **If you don't recognize the above action, you should immediately change your Acme account password.**
+    Thanks,
+    Acme team_
+
+    The flow will be further improved with the [ongoing refactoring](https://github.com/pocketbase/pocketbase/discussions/4355) and we will start sending emails for "unrecognized device" logins (OTP and MFA is already implemented and will be available with the next v0.23.0 release in the near future).
+
+
+## v0.22.13
+
+- Fixed rules inconsistency for text literals when inside parenthesis ([#5017](https://github.com/pocketbase/pocketbase/issues/5017)).
+
+- Updated Go deps.
+
+
+## v0.22.12
+
+- Fixed calendar picker grid layout misalignment on Firefox ([#4865](https://github.com/pocketbase/pocketbase/issues/4865)).
+
+- Updated Go deps and bumped the min Go version in the GitHub release action to Go 1.22.3 since it comes with [some minor security fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.22.3).
+
+
+## v0.22.11
+
+- Load the full record in the relation picker edit panel ([#4857](https://github.com/pocketbase/pocketbase/issues/4857)).
+
+
+## v0.22.10
+
+- Updated the uploaded filename normalization to take double extensions in consideration ([#4824](https://github.com/pocketbase/pocketbase/issues/4824))
+
+- Added Collection models cache to help speed up the common List and View requests execution with ~25%.
+  _This was extracted from the ongoing work on [#4355](https://github.com/pocketbase/pocketbase/discussions/4355) and there are many other small optimizations already implemented but they will have to wait for the refactoring to be finalized._
+
+
+## v0.22.9
+
+- Fixed Admin UI OAuth2 "Clear all fields" btn action to properly unset all form fields ([#4737](https://github.com/pocketbase/pocketbase/issues/4737)).
+
+
+## v0.22.8
+
+- Fixed '~' auto wildcard wrapping when the param has escaped `%` character ([#4704](https://github.com/pocketbase/pocketbase/discussions/4704)).
+
+- Other minor UI improvements (added `aria-expanded=true/false` to the dropdown triggers, added contrasting border around the default mail template btn style, etc.).
+
+- Updated Go deps and bumped the min Go version in the GitHub release action to Go 1.22.2 since it comes with [some `net/http` security and bug fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.22.2).
+
+
+## v0.22.7
+
+- Replaced the default `s3blob` driver with a trimmed vendored version to reduce the binary size with ~10MB.
+  _It can be further reduced with another ~10MB once we replace entirely the `aws-sdk-go-v2` dependency but I stumbled on some edge cases related to the headers signing and for now is on hold._
+
+- Other minor improvements (updated GitLab OAuth2 provider logo [#4650](https://github.com/pocketbase/pocketbase/pull/4650), normalized error messages, updated npm dependencies, etc.)
+
+
+## v0.22.6
+
+- Admin UI accessibility improvements:
+  - Fixed the dropdowns tab/enter/space keyboard navigation ([#4607](https://github.com/pocketbase/pocketbase/issues/4607)).
+  - Added `role`, `aria-label`, `aria-hidden` attributes to some of the elements in attempt to better assist screen readers.
+
+
+## v0.22.5
+
+- Minor test helpers fixes ([#4600](https://github.com/pocketbase/pocketbase/issues/4600)):
+  - Call the `OnTerminate` hook on `TestApp.Cleanup()`.
+  - Automatically run the DB migrations on initializing the test app with `tests.NewTestApp()`.
+
+- Added more elaborate warning message when restoring a backup explaining how the operation works.
+
+- Skip irregular files (symbolic links, sockets, etc.) when restoring a backup zip from the Admin UI or calling `archive.Extract(src, dst)` because they come with too many edge cases and ambiguities.
+  <details>
+    <summary><b><i>More details</i></b></summary>
+
+    This was initially reported as security issue (_thanks Harvey Spec_) but in the PocketBase context it is not something that can be exploited without an admin intervention and since the general expectations are that the PocketBase admins can do anything and they are the one who manage their server, this should be treated with the same diligence when using `scp`/`rsync`/`rclone`/etc. with untrusted file sources.
+
+    It is not possible (_or at least I'm not aware how to do that easily_) to perform virus/malicious content scanning on the uploaded backup archive files and some caution is always required when using the Admin UI or running shell commands, hence the backup-restore warning text.
+
+    **Or in other words, if someone sends you a file and tell you to upload it to your server (either as backup zip or manually via scp) obviously you shouldn't do that unless you really trust them.**
+
+    PocketBase is like any other regular application that you run on your server and there is no builtin "sandbox" for what the PocketBase process can execute. This is left to the developers to restrict on application or OS level depending on their needs. If you are self-hosting PocketBase you usually don't have to do that, but if you are offering PocketBase as a service and allow strangers to run their own PocketBase instances on your server then you'll need to implement the isolation mechanisms on your own.
+  </details>
+
+
+## v0.22.4
+
+- Removed conflicting styles causing the detailed codeblock log data preview to not visualize properly ([#4505](https://github.com/pocketbase/pocketbase/pull/4505)).
+
+- Minor JSVM improvements:
+  - Added `$filesystem.fileFromUrl(url, optSecTimeout)` helper.
+  - Implemented the `FormData` interface and added support for sending `multipart/form-data` requests with `$http.send()` ([#4544](https://github.com/pocketbase/pocketbase/discussions/4544)).
+
+
+## v0.22.3
+
+- Fixed the z-index of the current admin dropdown on Safari ([#4492](https://github.com/pocketbase/pocketbase/issues/4492)).
+
+- Fixed `OnAfterApiError` debug log `nil` error reference ([#4498](https://github.com/pocketbase/pocketbase/issues/4498)).
+
+- Added the field name as part of the `@request.data.someRelField.*` join to handle the case when a collection has 2 or more relation fields pointing to the same place ([#4500](https://github.com/pocketbase/pocketbase/issues/4500)).
+
+- Updated Go deps and bumped the min Go version in the GitHub release action to Go 1.22.1 since it comes with [some security fixes](https://github.com/golang/go/issues?q=milestone%3AGo1.22.1).
+
+
+## v0.22.2
+
+- Fixed a small regression introduced with v0.22.0 that was causing some missing unknown fields to always return an error instead of applying the specific `nullifyMisingField` resolver option to the query.
+
+
+## v0.22.1
+
+- Fixed Admin UI record and collection panels not reinitializing properly on browser back/forward navigation ([#4462](https://github.com/pocketbase/pocketbase/issues/4462)).
+
+- Initialize `RecordAuthWithOAuth2Event.IsNewRecord` for the `OnRecordBeforeAuthWithOAuth2Request` hook ([#4437](https://github.com/pocketbase/pocketbase/discussions/4437)).
+
+- Added error checks to the autogenerated Go migrations ([#4448](https://github.com/pocketbase/pocketbase/issues/4448)).
+
+
+## v0.22.0
+
+- Added Planning Center OAuth2 provider ([#4393](https://github.com/pocketbase/pocketbase/pull/4393); thanks @alxjsn).
+
+- Admin UI improvements:
+  - Autosync collection changes across multiple open browser tabs.
+  - Fixed vertical image popup preview scrolling.
+  - Added options to export a subset of collections.
+  - Added option to import a subset of collections without deleting the others ([#3403](https://github.com/pocketbase/pocketbase/issues/3403)).
+
+- Added support for back/indirect relation `filter`/`sort` (single and multiple).
+  The syntax to reference back relation fields is `yourCollection_via_yourRelField.*`.
+  ⚠️ To avoid excessive joins, the nested relations resolver is now limited to max 6 level depth (the same as `expand`).
+  _Note that in the future there will be also more advanced and granular options to specify a subset of the fields that are filterable/sortable._
+
+- Added support for multiple back/indirect relation `expand` and updated the keys to use the `_via_` reference syntax (`yourCollection_via_yourRelField`).
+  _To minimize the breaking changes, the old parenthesis reference syntax (`yourCollection(yourRelField)`) will still continue to work but it is soft-deprecated and there will be a console log reminding you to change it to the new one._
+
+- ⚠️ Collections and fields are no longer allowed to have `_via_` in their name to avoid collisions with the back/indirect relation reference syntax.
+
+- Added `jsvm.Config.OnInit` optional config function to allow registering custom Go bindings to the JSVM.
+
+- Added `@request.context` rule field that can be used to apply a different set of constraints based on the API rule execution context.
+  For example, to disallow user creation by an OAuth2 auth, you could set for the users Create API rule `@request.context != "oauth2"`.
+  The currently supported `@request.context` values are:
+  ```
+  default
+  realtime
+  protectedFile
+  oauth2
+  ```
+
+- Adjusted the `cron.Start()` to start the ticker at the `00` second of the cron interval ([#4394](https://github.com/pocketbase/pocketbase/discussions/4394)).
+  _Note that the cron format has only minute granularity and there is still no guarantee that the scheduled job will be always executed at the `00` second._
+
+- Fixed auto backups cron not reloading properly after app settings change ([#4431](https://github.com/pocketbase/pocketbase/discussions/4431)).
+
+- Upgraded to `aws-sdk-go-v2` and added special handling for GCS to workaround the previous [GCS headers signature issue](https://github.com/pocketbase/pocketbase/issues/2231) that we had with v2.
+  _This should also fix the SVG/JSON zero response when using Cloudflare R2 ([#4287](https://github.com/pocketbase/pocketbase/issues/4287#issuecomment-1925168142), [#2068](https://github.com/pocketbase/pocketbase/discussions/2068), [#2952](https://github.com/pocketbase/pocketbase/discussions/2952))._
+  _⚠️ If you are using S3 for uploaded files or backups, please verify that you have a green check in the Admin UI for your S3 configuration (I've tested the new version with GCS, MinIO, Cloudflare R2 and Wasabi)._
+
+- Added `:each` modifier support for `file` and `relation` type fields (_previously it was supported only for `select` type fields_).
+
+- Other minor improvements (updated the `ghupdate` plugin to use the configured executable name when printing to the console, fixed the error reporting of `admin update/delete` commands, etc.).
+
+
+## v0.21.3
+
+- Ignore the JS required validations for disabled OIDC providers ([#4322](https://github.com/pocketbase/pocketbase/issues/4322)).
+
+- Allow `HEAD` requests to the `/api/health` endpoint ([#4310](https://github.com/pocketbase/pocketbase/issues/4310)).
+
+- Fixed the `editor` field value when visualized inside the View collection preview panel.
+
+- Manually clear all TinyMCE events on editor removal (_workaround for [tinymce#9377](https://github.com/tinymce/tinymce/issues/9377)_).
+
+
+## v0.21.2
+
+- Fixed `@request.auth.*` initialization side-effect which caused the current authenticated user email to not being returned in the user auth response ([#2173](https://github.com/pocketbase/pocketbase/issues/2173#issuecomment-1932332038)).
+  _The current authenticated user email should be accessible always no matter of the `emailVisibility` state._
+
+- Fixed `RecordUpsert.RemoveFiles` godoc example.
+
+- Bumped to `NumCPU()+2` the `thumbGenSem` limit as some users reported that it was too restrictive.
+
+
+## v0.21.1
+
+- Small fix for the Admin UI related to the _Settings > Sync_ menu not being visible even when the "Hide controls" toggle is off.
+
+
+## v0.21.0
+
+- Added Bitbucket OAuth2 provider ([#3948](https://github.com/pocketbase/pocketbase/pull/3948); thanks @aabajyan).
+
+- Mark user as verified on confirm password reset ([#4066](https://github.com/pocketbase/pocketbase/issues/4066)).
+  _If the user email has changed after issuing the reset token (eg. updated by an admin), then the `verified` user state remains unchanged._
+
+- Added support for loading a serialized json payload for `multipart/form-data` requests using the special `@jsonPayload` key.
+  _This is intended to be used primarily by the SDKs to resolve [js-sdk#274](https://github.com/pocketbase/js-sdk/issues/274)._
+
+- Added graceful OAuth2 redirect error handling ([#4177](https://github.com/pocketbase/pocketbase/issues/4177)).
+  _Previously on redirect error we were returning directly a standard json error response. Now on redirect error we'll redirect to a generic OAuth2 failure screen (similar to the success one) and will attempt to auto close the OAuth2 popup._
+  _The SDKs are also updated to handle the OAuth2 redirect error and it will be returned as Promise rejection of the `authWithOAuth2()` call._
+
+- Exposed `$apis.gzip()` and `$apis.bodyLimit(bytes)` middlewares to the JSVM.
+
+- Added `TestMailer.SentMessages` field that holds all sent test app emails until cleanup.
+
+- Optimized the cascade delete of records with multiple `relation` fields.
+
+- Updated the `serve` and `admin` commands error reporting.
+
+- Minor Admin UI improvements (reduced the min table row height, added option to duplicate fields, added new TinyMCE codesample plugin languages, hide the collection sync settings when the `Settings.Meta.HideControls` is enabled, etc.)
+
+
 ## v0.20.7
 
 - Fixed the Admin UI auto indexes update when renaming fields with a common prefix ([#4160](https://github.com/pocketbase/pocketbase/issues/4160)).

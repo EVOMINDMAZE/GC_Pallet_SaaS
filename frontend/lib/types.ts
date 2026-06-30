@@ -1,4 +1,10 @@
-export type ProjectStatus = "planning" | "active" | "completed" | "on_hold";
+export type ProjectStatus =
+  | "planning"
+  | "active"
+  | "completed"
+  | "on_hold"
+  | "draft"
+  | "procurement";
 export type DocumentCategory = "contract" | "permit" | "invoice" | "receipt" | "photo" | "other";
 export type InventoryUnit = "pieces" | "lbs" | "kg" | "sqft" | "sqm";
 export type InventoryLocation = "warehouse" | "job_site" | "in_transit";

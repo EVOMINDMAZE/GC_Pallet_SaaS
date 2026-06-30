@@ -3,10 +3,16 @@ import useSWR from "swr";
 import { getPocketBase } from "@/lib/pocketbase";
 import type { ProjectsRecord } from "@/lib/types";
 
-export function useProjects() {
+export function useProjects(opts?: { createdAfter?: string }) {
   const pb = getPocketBase();
-  return useSWR<ProjectsRecord[]>("projects", async () => {
-    return (await pb.collection("projects").getFullList({ sort: "-created" })) as ProjectsRecord[];
+  const key = opts?.createdAfter ? ["projects", opts.createdAfter] : "projects";
+  const createdAfter = opts?.createdAfter;
+  return useSWR<ProjectsRecord[]>(key, async () => {
+    const filter = createdAfter ? `created >= "${createdAfter}"` : "";
+    return (await pb.collection("projects").getFullList({
+      sort: "-created",
+      filter,
+    })) as ProjectsRecord[];
   });
 }
 
