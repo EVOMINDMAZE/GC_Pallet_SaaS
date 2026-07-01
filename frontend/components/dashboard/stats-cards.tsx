@@ -7,7 +7,7 @@ import { useInventory } from "@/hooks/useInventory";
 import { StatCard } from "@/components/ui/stat-card";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { Sparkline } from "@/components/dashboard/sparkline";
-import { bucketByDay, pctDelta } from "@/components/dashboard/dashboard-helpers";
+import { bucketByDay } from "@/components/dashboard/dashboard-helpers";
 import { formatCurrency } from "@/lib/format";
 import type { DashboardRange } from "@/hooks/useDashboardData";
 
@@ -44,10 +44,6 @@ export function StatsCards({ range }: { range: DashboardRange }) {
   const docSpark = bucketByDay(filteredDocuments, days, "uploadedAt").map((b) => b.count);
   const invSpark = bucketByDay(filteredInventory, days, "lastUpdated").map((b) => b.count);
 
-  const projDelta = pctDelta(filteredProjects.length, 0);
-  const docDelta = pctDelta(filteredDocuments.length, 0);
-  const invDelta = pctDelta(filteredInventory.length, 0);
-
   const isLoading = projQ.isLoading || docsQ.isLoading || invQ.isLoading || allProjQ.isLoading;
   if (isLoading) {
     return (
@@ -71,7 +67,6 @@ export function StatsCards({ range }: { range: DashboardRange }) {
           label="Active Projects"
           value={activeProjects}
           caption={`${filteredProjects.length} new ${range === "all" ? "total" : "in period"}`}
-          trend={{ label: projDelta.text, variant: projDelta.positive ? "success" : "warning" }}
           aside={<Sparkline values={projSpark} />}
           className="transition group-hover:ring-1 group-hover:ring-gcpallet-primary/30 group-hover:-translate-y-0.5"
         />
@@ -82,7 +77,6 @@ export function StatsCards({ range }: { range: DashboardRange }) {
           label="Documents"
           value={filteredDocuments.length}
           caption={`of ${documents.length} total`}
-          trend={{ label: docDelta.text, variant: docDelta.positive ? "success" : "info" }}
           aside={<Sparkline values={docSpark} stroke="hsl(var(--info))" />}
           className="transition group-hover:ring-1 group-hover:ring-gcpallet-primary/30 group-hover:-translate-y-0.5"
         />
@@ -93,7 +87,6 @@ export function StatsCards({ range }: { range: DashboardRange }) {
           label="Inventory Items"
           value={filteredInventory.length}
           caption="Across active job sites"
-          trend={{ label: invDelta.text, variant: invDelta.positive ? "success" : "warning" }}
           aside={<Sparkline values={invSpark} stroke="hsl(var(--success))" />}
           className="transition group-hover:ring-1 group-hover:ring-gcpallet-primary/30 group-hover:-translate-y-0.5"
         />

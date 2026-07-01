@@ -6,6 +6,15 @@ export interface StatCardProps extends React.HTMLAttributes<HTMLDivElement> {
   label: string;
   value: React.ReactNode;
   caption?: React.ReactNode;
+  /**
+   * Optional change-indicator pill (right of the value).
+   *
+   * NOTE: currently unused by the four dashboard stat cards — the dashboard
+   * only renders one period of data, so there is no prior period to compare
+   * against and the pill would always read `+100%` (or `—`). The prop is kept
+   * on the API so callers can use it once a real previous-period comparison
+   * is wired in. See `.trae/specs/dashboard-stat-card-polish/spec.md`.
+   */
   trend?: { label: string; variant?: "success" | "warning" | "info" | "destructive" };
   /** Optional content rendered on the right side (e.g. <Sparkline values={...} />). */
   aside?: React.ReactNode;
@@ -28,15 +37,20 @@ export function StatCard({ icon, label, value, caption, trend, aside, className,
       {...props}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5">
+        {/* Icon + label group can shrink so the aside slot keeps a fixed width. */}
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           {icon && (
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gcpallet-accent text-gcpallet-accent-foreground">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gcpallet-accent text-gcpallet-accent-foreground">
               {icon}
             </div>
           )}
-          <span className="text-label uppercase tracking-wider text-muted-foreground">{label}</span>
+          <span className="truncate whitespace-nowrap text-label uppercase tracking-wider text-muted-foreground">
+            {label}
+          </span>
         </div>
-        {aside}
+        {/* The aside slot is locked to the sparkline's natural footprint so
+            the SVG inside it can't grow and bleed past the card. */}
+        {aside && <div className="flex-none">{aside}</div>}
       </div>
       <div className="mt-3 flex items-end justify-between gap-3">
         <div className="text-display font-bold tracking-tight tabular-nums text-foreground">
