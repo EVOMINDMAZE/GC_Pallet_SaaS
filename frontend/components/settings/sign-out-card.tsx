@@ -1,17 +1,15 @@
 "use client";
-
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/toaster";
 
 export function SignOutCard() {
   const router = useRouter();
   async function logout() {
-    const pb = getPocketBase();
-    pb.authStore.clear();
+    await getSupabase().auth.signOut();
     toast({ title: "Signed out" });
     router.push("/login");
     router.refresh();

@@ -1,9 +1,8 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +22,7 @@ export function ProfileForm() {
   const [phone, setPhone] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  // Seed form values from the auth user only after mount so the
-  // server-rendered (empty) input values match the first client paint.
+
   useEffect(() => {
     if (user) {
       setName(user.name ?? "");
@@ -52,12 +50,15 @@ export function ProfileForm() {
     if (!user) return;
     setSaving(true);
     try {
-      const pb = getPocketBase();
-      await pb.collection("users").update(user.id, {
-        name: parsed.data.name,
-        company_name: parsed.data.company_name || "",
-        phone: parsed.data.phone || "",
-      });
+      const { error } = await getSupabase()
+        .from("profiles")
+        .update({
+          name: parsed.data.name,
+          company_name: parsed.data.company_name || null,
+          phone: parsed.data.phone || null,
+        })
+        .eq("id", user.id);
+      if (error) throw error;
       await refresh();
       toast({ title: "Profile saved", variant: "success" });
     } catch (err) {

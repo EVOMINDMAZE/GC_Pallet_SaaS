@@ -6,7 +6,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useProjects } from "@/hooks/useProjects";
 import { Calendar } from "lucide-react";
 
-function progress(start?: string, end?: string): { pct: number; status: "future" | "in-progress" | "overdue" | "done" } {
+function progress(start?: string | null, end?: string | null): { pct: number; status: "future" | "in-progress" | "overdue" | "done" } {
   if (!start || !end) return { pct: 0, status: "future" };
   const s = new Date(start).getTime();
   const e = new Date(end).getTime();

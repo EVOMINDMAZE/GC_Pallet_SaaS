@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList, ShieldCheck } from "lucide-react";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
 import { toastVariants_enum as toast } from "@/components/ui/toaster";
 
 export default function RegisterPage() {
@@ -21,17 +21,28 @@ export default function RegisterPage() {
     const fd = new FormData(e.currentTarget);
     const email = String(fd.get("email"));
     const password = String(fd.get("password"));
+    const name = String(fd.get("name") || "");
+    const company_name = String(fd.get("company_name") || "");
+    const phone = String(fd.get("phone") || "");
     try {
-      const pb = getPocketBase();
-      await pb.collection("users").create({
+      const supabase = getSupabase();
+      const { error: signUpErr } = await supabase.auth.signUp({
         email,
         password,
-        passwordConfirm: password,
-        name: String(fd.get("name") || ""),
-        company_name: String(fd.get("company_name") || ""),
-        phone: String(fd.get("phone") || ""),
+        options: { data: { name, company_name, phone } },
       });
-      await pb.collection("users").authWithPassword(email, password);
+      if (signUpErr) throw signUpErr;
+      // If email confirmation is required in Supabase, the user will get
+      // a magic link. Otherwise they are signed in immediately.
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) {
+        toast.success(
+          "Check your email",
+          "We sent a confirmation link to " + email,
+        );
+        router.push("/login");
+        return;
+      }
       toast.success("Account created", "Welcome to GC Pallet.");
       router.push("/");
       router.refresh();

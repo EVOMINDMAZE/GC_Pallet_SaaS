@@ -11,18 +11,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Package } from "lucide-react";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
 import { toastVariants_enum as toast } from "@/components/ui/toaster";
 import { formatCurrency, formatDate } from "@/lib/format";
-import type { InventoryRecord } from "@/lib/types";
+import type { InventoryItem } from "@/lib/types";
 
-export function InventoryTable({ items }: { items: InventoryRecord[] }) {
+export function InventoryTable({ items }: { items: InventoryItem[] }) {
   const router = useRouter();
 
   async function onDelete(id: string) {
     if (!confirm("Delete this item?")) return;
     try {
-      await getPocketBase().collection("inventory").delete(id);
+      const { error } = await getSupabase().from("inventory").delete().eq("id", id);
+      if (error) throw error;
       toast.success("Deleted");
       router.refresh();
       window.location.reload();
@@ -43,7 +44,7 @@ export function InventoryTable({ items }: { items: InventoryRecord[] }) {
 
   const totalValue = items.reduce(
     (sum, it) => sum + (typeof it.cost_per_unit === "number" ? it.cost_per_unit : 0) * it.quantity,
-    0
+    0,
   );
 
   return (

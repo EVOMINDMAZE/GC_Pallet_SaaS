@@ -1,24 +1,33 @@
 "use client";
 import useSWR from "swr";
-import { getPocketBase } from "@/lib/pocketbase";
-import type { UsersRecord } from "@/lib/types";
+import { getSupabase } from "@/lib/supabase";
+import type { Profile } from "@/lib/types";
 
 export function useAuth() {
-  const pb = getPocketBase();
-  const { data, isLoading, mutate } = useSWR<UsersRecord | null>("auth-user", async () => {
-    if (!pb.authStore.model) return null;
-    try {
-      return (await pb.collection("users").getOne(pb.authStore.model.id)) as UsersRecord;
-    } catch {
-      return null;
-    }
-  });
+  const supabase = getSupabase();
+  const { data, isLoading, mutate } = useSWR<Profile | null>(
+    "auth-user",
+    async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.user) return null;
+      const { data: row, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", sess.session.user.id)
+        .maybeSingle();
+      if (error) return null;
+      return (row as Profile | null) ?? null;
+    },
+    { revalidateOnMount: true },
+  );
 
   return {
     user: data ?? null,
-    isAuthenticated: !!pb.authStore.model,
+    isAuthenticated: !!data,
     isLoading,
     refresh: mutate,
-    logout: () => pb.authStore.clear(),
+    logout: async () => {
+      await supabase.auth.signOut();
+    },
   };
 }

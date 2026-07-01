@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminPocketBase } from "@/lib/pb-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { SHARE_TOKEN_PATTERN } from "@/lib/share-token";
 
 export const runtime = "nodejs";
@@ -12,9 +12,8 @@ export const runtime = "nodejs";
  *   404 → unknown or revoked token
  *   410 → expired
  *
- * The server-side admin PB client can read projects, inventory, and
- * users regardless of their viewRule; we still sanity-check that the
- * share is not revoked or expired before returning data.
+ * Uses the service-role client so we can read the share + project +
+ * inventory rows even when the visitor is not authenticated.
  */
 export async function GET(
   _req: NextRequest,
@@ -25,33 +24,15 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const pb = await getAdminPocketBase();
+  const admin = getSupabaseAdmin();
 
-  let share;
-  try {
-    // Bypass the PocketBase JS SDK and use a direct `fetch` with
-    // `cache: "no-store"` here. Reason: the admin SDK is a long-lived
-    // singleton (see lib/pb-admin.ts), and in our investigation the
-    // SDK's getFirstListItem returned a stale `revoked` flag on the
-    // second hit within the same process — so a freshly-revoked token
-    // still appeared active to the next public visitor until the
-    // server restarted. Going straight to the REST API sidesteps any
-    // in-process response caching and matches the per-request
-    // semantics we need for revoke. Revisit this if/when:
-    //   1) the PB JS SDK exposes an explicit no-cache option, or
-    //   2) we switch to a per-request admin client and confirm the
-    //      SDK cache is actually per-instance.
-    const adminToken = pb.authStore.token;
-    const base = process.env.POCKETBASE_URL || "http://127.0.0.1:8090";
-    const res = await fetch(
-      `${base}/api/collections/shares/records?filter=${encodeURIComponent(`token = "${token}"`)}&perPage=1`,
-      { headers: { Authorization: adminToken }, cache: "no-store" },
-    );
-    if (!res.ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    const data = await res.json();
-    share = data?.items?.[0];
-    if (!share) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  } catch {
+  // Look up the share record.
+  const { data: share, error: shareErr } = await admin
+    .from("shares")
+    .select("*")
+    .eq("token", token)
+    .maybeSingle();
+  if (shareErr || !share) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -62,22 +43,37 @@ export async function GET(
     return NextResponse.json({ error: "Expired" }, { status: 410 });
   }
 
-  // Fetch the project + the inventory in this project, in parallel.
-  const [project, inventoryRes, owner] = await Promise.all([
-    pb.collection("projects").getOne(share.resource),
-    pb.collection("inventory").getList(1, 200, {
-      filter: `project = "${share.resource}"`,
-      sort: "-last_updated",
-    }),
-    pb.collection("users").getOne(share.created_by).catch(() => null),
-  ]);
+  // Project + inventory + owner in parallel.
+  const [{ data: project, error: projErr }, { data: inv, error: invErr }, { data: owner }] =
+    await Promise.all([
+      admin.from("projects").select("*").eq("id", share.resource_id).maybeSingle(),
+      admin
+        .from("inventory")
+        .select("id, item_name, quantity, unit, location, cost_per_unit, last_updated")
+        .eq("project_id", share.resource_id)
+        .order("last_updated", { ascending: false })
+        .limit(200),
+      admin
+        .from("profiles")
+        .select("id, name")
+        .eq("id", share.created_by)
+        .maybeSingle(),
+    ]);
 
-  // Increment view_count (best-effort; the caller's experience is the
-  // primary response, not the counter).
+  if (projErr || !project) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (invErr) {
+    return NextResponse.json({ error: "Inventory read failed" }, { status: 500 });
+  }
+
+  // Increment view count (best-effort).
   const newCount = (share.view_count ?? 0) + 1;
-  pb.collection("shares").update(share.id, { view_count: newCount }).catch(() => {
-    /* ignore */
-  });
+  admin
+    .from("shares")
+    .update({ view_count: newCount })
+    .eq("id", share.id)
+    .then(() => {}, () => {});
 
   return NextResponse.json({
     project: {
@@ -88,9 +84,9 @@ export async function GET(
       budget: project.budget ?? 0,
       start_date: project.start_date,
       end_date: project.end_date,
-      created: project.created,
+      created: project.created_at,
     },
-    inventory: inventoryRes.items.map((i: Record<string, unknown>) => ({
+    inventory: (inv ?? []).map((i) => ({
       id: i.id,
       item_name: i.item_name,
       quantity: i.quantity,
@@ -99,14 +95,12 @@ export async function GET(
       cost_per_unit: i.cost_per_unit,
       last_updated: i.last_updated,
     })),
-    owner: owner
-      ? { id: owner.id, name: (owner as Record<string, unknown>).name ?? "" }
-      : { id: "", name: "" },
+    owner: owner ? { id: owner.id, name: owner.name ?? "" } : { id: "", name: "" },
     share: {
       id: share.id,
       expiresAt: share.expires_at ?? null,
       viewCount: newCount,
-      createdAt: share.created,
+      createdAt: share.created_at,
     },
   });
 }

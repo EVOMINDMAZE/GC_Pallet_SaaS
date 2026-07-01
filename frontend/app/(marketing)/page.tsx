@@ -8,18 +8,22 @@ import { FeatureCard } from "@/components/marketing/feature-card";
 import { CtaBanner } from "@/components/marketing/cta-banner";
 import { ProductMockup } from "@/components/marketing/product-mockup";
 import { FAQ } from "@/components/marketing/faq";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
 import { FolderKanban, Files, Truck, Workflow } from "lucide-react";
 
 export default function MarketingHome() {
   const router = useRouter();
-  // If signed in, push to the dashboard. We do this client-side because PB
-  // auth lives in localStorage (not a cookie), so we can't gate on the server.
+  // If signed in, push to the dashboard. Supabase auth lives in
+  // localStorage (not a server-readable cookie on first paint), so we
+  // gate client-side.
   React.useEffect(() => {
-    const pb = getPocketBase();
-    if (pb.authStore.model) {
-      router.replace("/dashboard");
-    }
+    let alive = true;
+    getSupabase().auth.getSession().then(({ data }) => {
+      if (alive && data.session) router.replace("/dashboard");
+    });
+    return () => {
+      alive = false;
+    };
   }, [router]);
 
   return (
@@ -94,7 +98,7 @@ export default function MarketingHome() {
               },
               {
                 q: "Where is my data stored?",
-                a: "In a PocketBase instance hosted alongside the app. You can self-host or use our hosted version — both are encrypted at rest.",
+                a: "In a Supabase Postgres database with row-level security on every table. Backups are taken daily, and you can self-host the database if you outgrow the free tier.",
               },
               {
                 q: "Can I import existing projects?",

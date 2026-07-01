@@ -12,10 +12,10 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
 import { projectSchema, type ProjectInput } from "@/lib/schemas";
 import { toast } from "@/components/ui/toaster";
-import type { ProjectsRecord, ProjectStatus } from "@/lib/types";
+import type { Project, ProjectStatus } from "@/lib/types";
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
   planning: "Planning",
@@ -26,7 +26,7 @@ const STATUS_LABELS: Record<ProjectStatus, string> = {
   procurement: "Procurement",
 };
 
-export function ProjectForm({ initial, projectId }: { initial?: ProjectsRecord; projectId?: string }) {
+export function ProjectForm({ initial, projectId }: { initial?: Project; projectId?: string }) {
   const router = useRouter();
   const [submitting, setSubmitting] = React.useState(false);
   const [status, setStatus] = React.useState<ProjectStatus>(initial?.status ?? "planning");
@@ -46,16 +46,35 @@ export function ProjectForm({ initial, projectId }: { initial?: ProjectsRecord; 
       return;
     }
     const data: ProjectInput = parsed.data;
+    const supabase = getSupabase();
     try {
-      const pb = getPocketBase();
-      const userId = pb.authStore.model?.id;
-      if (!userId) throw new Error("Not authenticated");
-
       if (projectId) {
-        await pb.collection("projects").update(projectId, data);
+        const { error } = await supabase
+          .from("projects")
+          .update({
+            name: data.name,
+            address: data.address || null,
+            budget: typeof data.budget === "number" ? data.budget : null,
+            start_date: data.start_date || null,
+            end_date: data.end_date || null,
+            status: data.status,
+          })
+          .eq("id", projectId);
+        if (error) throw error;
         toast({ title: "Project updated", variant: "success" });
       } else {
-        await pb.collection("projects").create({ ...data, user: userId });
+        const { data: sess } = await supabase.auth.getSession();
+        if (!sess.session?.user) throw new Error("Not authenticated");
+        const { error } = await supabase.from("projects").insert({
+          user_id: sess.session.user.id,
+          name: data.name,
+          address: data.address || null,
+          budget: typeof data.budget === "number" ? data.budget : null,
+          start_date: data.start_date || null,
+          end_date: data.end_date || null,
+          status: data.status,
+        });
+        if (error) throw error;
         toast({ title: "Project created", variant: "success" });
       }
       window.location.href = "/projects";
@@ -79,12 +98,12 @@ export function ProjectForm({ initial, projectId }: { initial?: ProjectsRecord; 
         <CardContent className="space-y-5">
           <div className="grid gap-2">
             <Label htmlFor="name">Project name</Label>
-            <Input id="name" name="name" required defaultValue={initial?.name} placeholder="Riverside Tower" />
+            <Input id="name" name="name" required defaultValue={initial?.name ?? undefined} placeholder="Riverside Tower" />
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="address">Site address</Label>
-            <Input id="address" name="address" defaultValue={initial?.address} placeholder="123 Riverside Dr, Springfield" />
+            <Input id="address" name="address" defaultValue={initial?.address ?? undefined} placeholder="123 Riverside Dr, Springfield" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -123,17 +142,16 @@ export function ProjectForm({ initial, projectId }: { initial?: ProjectsRecord; 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="start_date">Start date</Label>
-              <Input id="start_date" name="start_date" type="date" defaultValue={initial?.start_date} />
+              <Input id="start_date" name="start_date" type="date" defaultValue={initial?.start_date ?? undefined} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="end_date">End date</Label>
-              <Input id="end_date" name="end_date" type="date" defaultValue={initial?.end_date} />
+              <Input id="end_date" name="end_date" type="date" defaultValue={initial?.end_date ?? undefined} />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Sticky footer */}
       <div className="sticky bottom-0 -mx-6 mt-2 flex items-center justify-end gap-3 border-t border-border bg-background/85 px-6 py-4 backdrop-blur">
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={submitting}>
           Cancel

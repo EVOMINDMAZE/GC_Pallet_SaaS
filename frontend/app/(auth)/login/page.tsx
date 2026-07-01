@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList, ShieldCheck } from "lucide-react";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
 import { toastVariants_enum as toast } from "@/components/ui/toaster";
 
 export default function LoginPage() {
@@ -20,14 +20,19 @@ export default function LoginPage() {
     setSubmitting(true);
     const fd = new FormData(e.currentTarget);
     try {
-      await getPocketBase()
-        .collection("users")
-        .authWithPassword(String(fd.get("email")), String(fd.get("password")));
+      const { error } = await getSupabase().auth.signInWithPassword({
+        email: String(fd.get("email")),
+        password: String(fd.get("password")),
+      });
+      if (error) throw error;
       toast.success("Welcome back");
       router.push("/");
       router.refresh();
-    } catch {
-      toast.destructive("Invalid credentials", "Check your email and password.");
+    } catch (err) {
+      toast.destructive(
+        "Invalid credentials",
+        err instanceof Error ? err.message : "Check your email and password.",
+      );
     } finally {
       setSubmitting(false);
     }

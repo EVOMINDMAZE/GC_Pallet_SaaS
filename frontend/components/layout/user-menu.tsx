@@ -12,7 +12,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/components/ui/toaster";
 
@@ -25,8 +25,7 @@ export function UserMenu() {
   React.useEffect(() => setMounted(true), []);
 
   async function logout() {
-    const pb = getPocketBase();
-    pb.authStore.clear();
+    await getSupabase().auth.signOut();
     toast({ title: "Signed out" });
     router.push("/login");
     router.refresh();

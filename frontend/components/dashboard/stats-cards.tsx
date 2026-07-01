@@ -36,7 +36,7 @@ export function StatsCards({ range }: { range: DashboardRange }) {
   const totalBudget = (allProjects ?? []).reduce((sum, p) => sum + (p.budget ?? 0), 0);
   const activeProjects = (allProjects ?? []).filter((p) => p.status === "active").length;
 
-  const projSpark = bucketByDay(projects, days).map((b) => b.count);
+  const projSpark = bucketByDay(projects, days, "created_at").map((b) => b.count);
   const docSpark = bucketByDay(documents, days, "uploaded_at").map((b) => b.count);
   const invSpark = bucketByDay(invQ.data ?? [], days, "last_updated").map((b) => b.count);
 

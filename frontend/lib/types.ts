@@ -1,3 +1,6 @@
+// Mirrors the `public.*` tables in supabase/schema.sql. Keep these
+// in sync if you add columns. Used by hooks and components for typing.
+
 export type ProjectStatus =
   | "planning"
   | "active"
@@ -5,65 +8,84 @@ export type ProjectStatus =
   | "on_hold"
   | "draft"
   | "procurement";
-export type DocumentCategory = "contract" | "permit" | "invoice" | "receipt" | "photo" | "other";
+
+export type DocumentCategory =
+  | "contract"
+  | "permit"
+  | "invoice"
+  | "receipt"
+  | "photo"
+  | "other";
+
 export type InventoryUnit = "pieces" | "lbs" | "kg" | "sqft" | "sqm";
 export type InventoryLocation = "warehouse" | "job_site" | "in_transit";
 
-export type ProjectsRecord = {
+export type Project = {
   id: string;
-  collectionId: string;
-  collectionName: string;
+  user_id: string;
   name: string;
-  address?: string;
-  budget?: number;
-  start_date?: string;
-  end_date?: string;
+  address: string | null;
+  budget: number | null;
+  start_date: string | null;
+  end_date: string | null;
   status: ProjectStatus;
-  user: string;
-  created: string;
-  updated: string;
+  created_at: string;
+  updated_at: string;
 };
 
-export type DocumentsRecord = {
+export type InventoryItem = {
   id: string;
-  collectionId: string;
-  collectionName: string;
-  name: string;
-  file: string;
-  category: DocumentCategory;
-  project: string;
-  uploaded_at: string;
-  user: string;
-  created: string;
-  updated: string;
-};
-
-export type InventoryRecord = {
-  id: string;
-  collectionId: string;
-  collectionName: string;
+  user_id: string;
+  project_id: string;
   item_name: string;
   quantity: number;
   unit: InventoryUnit;
   location: InventoryLocation;
-  cost_per_unit?: number;
-  project: string;
+  cost_per_unit: number | null;
   last_updated: string;
-  user: string;
-  created: string;
-  updated: string;
+  created_at: string;
+  updated_at: string;
 };
 
-export type UsersRecord = {
+export type DocumentRecord = {
   id: string;
-  collectionId: string;
-  collectionName: string;
-  email: string;
-  name?: string;
-  avatar?: string;
-  company_name?: string;
-  phone?: string;
-  verified: boolean;
-  created: string;
-  updated: string;
+  user_id: string;
+  project_id: string;
+  name: string;
+  file_path: string;
+  mime_type: string;
+  size_bytes: number;
+  category: DocumentCategory;
+  uploaded_at: string;
+  created_at: string;
+  updated_at: string;
 };
+
+export type Profile = {
+  id: string;
+  email: string;
+  name: string | null;
+  company_name: string | null;
+  phone: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Share = {
+  id: string;
+  token: string;
+  resource_id: string;
+  created_by: string;
+  expires_at: string | null;
+  revoked: boolean;
+  view_count: number;
+  label: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// Back-compat aliases for old code that referenced PB-shaped types.
+export type ProjectsRecord = Project;
+export type InventoryRecord = InventoryItem;
+export type DocumentsRecord = DocumentRecord;
+export type UsersRecord = Profile;

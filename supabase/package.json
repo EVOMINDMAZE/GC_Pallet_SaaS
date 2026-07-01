@@ -1,0 +1,14 @@
+{
+  "name": "gc-pallet-migration",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "One-time PocketBase → Supabase data migration. Not part of the deployable app.",
+  "scripts": {
+    "start": "node migrate-from-pocketbase.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5"
+  }
+}

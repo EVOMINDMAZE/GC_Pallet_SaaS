@@ -5,8 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { FolderKanban, FileText, Plus, ChevronRight } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
-import { useDocuments } from "@/hooks/useDocuments";
-import { getPocketBase } from "@/lib/pocketbase";
+import { useDocuments, getDocumentSignedUrl } from "@/hooks/useDocuments";
 import { formatDate, formatCurrency } from "@/lib/format";
 
 export function RecentActivity() {
@@ -15,6 +14,11 @@ export function RecentActivity() {
 
   const recentProjects = (projects ?? []).slice(0, 5);
   const recentDocs = (docs ?? []).slice(0, 5);
+
+  async function openDoc(filePath: string) {
+    const url = await getDocumentSignedUrl(filePath);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+  }
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -90,14 +94,13 @@ export function RecentActivity() {
                     {d.category} · {formatDate(d.uploaded_at)}
                   </div>
                 </div>
-                <a
-                  href={getPocketBase().files.getUrl(d, d.file)}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => openDoc(d.file_path)}
                   className="text-sm text-gcpallet-primary hover:underline"
                 >
                   Open
-                </a>
+                </button>
               </div>
             ))
           )}

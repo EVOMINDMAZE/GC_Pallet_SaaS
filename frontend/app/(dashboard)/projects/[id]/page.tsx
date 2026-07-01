@@ -18,7 +18,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getDocumentSignedUrl } from "@/hooks/useDocuments";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 export default function ProjectDetailPage({ params }: { params: { id: string } }) {
@@ -118,14 +118,16 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                     <TableCell className="capitalize text-muted-foreground">{d.category}</TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(d.uploaded_at)}</TableCell>
                     <TableCell className="text-right">
-                      <a
-                        href={getPocketBase().files.getUrl(d, d.file)}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const url = await getDocumentSignedUrl(d.file_path);
+                          if (url) window.open(url, "_blank", "noopener,noreferrer");
+                        }}
                         className="text-sm font-medium text-gcpallet-primary hover:underline"
                       >
                         Open
-                      </a>
+                      </button>
                     </TableCell>
                   </TableRow>
                 ))}

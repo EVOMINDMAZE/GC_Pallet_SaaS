@@ -1,34 +1,27 @@
 "use client";
 import useSWR from "swr";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
+import type { Share } from "@/lib/types";
 
-export interface ShareRecord {
-  id: string;
-  token: string;
-  resource: string;
-  created_by: string;
-  expires_at: string | null;
-  revoked: boolean;
-  view_count: number;
-  created: string;
-  updated: string;
-}
+export type ShareRecord = Share;
 
 /**
- * List active shares for a project. The PB listRule is
- * "@request.auth.id != ''", so this only returns the current user's
- * shares.
+ * List the current user's active shares for a project.
  */
 export function useProjectShares(projectId: string | null | undefined) {
+  const supabase = getSupabase();
   return useSWR<ShareRecord[]>(
     projectId ? ["project-shares", projectId] : null,
     async () => {
-      const pb = getPocketBase();
-      const res = await pb.collection("shares").getList<ShareRecord>(1, 50, {
-        filter: `resource = "${projectId}" && revoked = false`,
-        sort: "-created",
-      });
-      return res.items;
+      const { data, error } = await supabase
+        .from("shares")
+        .select("*")
+        .eq("resource_id", projectId!)
+        .eq("revoked", false)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as ShareRecord[];
     },
   );
 }
@@ -45,23 +38,62 @@ export interface CreateShareResponse {
   expiresAt: string | null;
 }
 
+const EXPIRY_MS: Record<CreateShareInput["expiresIn"], number | null> = {
+  "1d": 24 * 60 * 60 * 1000,
+  "7d": 7 * 24 * 60 * 60 * 1000,
+  "30d": 30 * 24 * 60 * 60 * 1000,
+  never: null,
+};
+
+/**
+ * Create a share record. We use a client-side insert (RLS enforces
+ * that the project belongs to the current user) and generate the
+ * token + URL locally.
+ */
 export async function createShare(input: CreateShareInput): Promise<CreateShareResponse> {
-  const res = await fetch("/api/shares", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  if (!res.ok) {
-    const j = await res.json().catch(() => ({}));
-    throw new Error(j.error || `createShare failed (${res.status})`);
-  }
-  return res.json();
+  const supabase = getSupabase();
+  const { data: sess } = await supabase.auth.getSession();
+  if (!sess.session?.user) throw new Error("Not authenticated");
+
+  const ms = EXPIRY_MS[input.expiresIn];
+  const expiresAt = ms ? new Date(Date.now() + ms).toISOString() : null;
+
+  const token = randomToken(18);
+  const { data, error } = await supabase
+    .from("shares")
+    .insert({
+      token,
+      resource_id: input.resourceId,
+      created_by: sess.session.user.id,
+      expires_at: expiresAt,
+      revoked: false,
+      view_count: 0,
+    })
+    .select("id, token")
+    .single();
+  if (error) throw new Error(error.message);
+
+  return {
+    id: data.id,
+    token: data.token,
+    url: `${window.location.origin}/share/${data.token}`,
+    expiresAt,
+  };
 }
 
 export async function revokeShare(token: string): Promise<void> {
-  const res = await fetch(`/api/shares/${token}/revoke`, { method: "POST" });
-  if (!res.ok) {
-    const j = await res.json().catch(() => ({}));
-    throw new Error(j.error || `revokeShare failed (${res.status})`);
-  }
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from("shares")
+    .update({ revoked: true })
+    .eq("token", token);
+  if (error) throw new Error(error.message);
+}
+
+function randomToken(bytes = 18): string {
+  const buf = new Uint8Array(bytes);
+  crypto.getRandomValues(buf);
+  let bin = "";
+  for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]!);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }

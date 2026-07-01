@@ -18,10 +18,10 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
 import { documentSchema } from "@/lib/schemas";
 import { toastVariants_enum as toast } from "@/components/ui/toaster";
-import type { DocumentCategory, ProjectsRecord } from "@/lib/types";
+import type { DocumentCategory, Project } from "@/lib/types";
 
 export function UploadModal({
   open,
@@ -30,7 +30,7 @@ export function UploadModal({
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  projects: ProjectsRecord[];
+  projects: Project[];
 }) {
   const router = useRouter();
   const [submitting, setSubmitting] = React.useState(false);
@@ -63,17 +63,40 @@ export function UploadModal({
       return;
     }
     try {
-      const pb = getPocketBase();
-      const userId = pb.authStore.model?.id;
-      if (!userId) throw new Error("Not authenticated");
-      const fd2 = new FormData();
-      fd2.append("name", parsed.data.name);
-      fd2.append("category", parsed.data.category);
-      fd2.append("project", parsed.data.project);
-      fd2.append("uploaded_at", new Date().toISOString());
-      fd2.append("user", userId);
-      fd2.append("file", file);
-      await pb.collection("documents").create(fd2);
+      const supabase = getSupabase();
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.user) throw new Error("Not authenticated");
+      const userId = sess.session.user.id;
+
+      // 1) upload the file to the `documents` bucket under
+      //    <user_id>/<doc-id>.<ext>. RLS makes sure users can only
+      //    write into their own folder.
+      const docId = crypto.randomUUID();
+      const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+      const filePath = `${userId}/${docId}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("documents")
+        .upload(filePath, file, { contentType: file.type || undefined, upsert: false });
+      if (upErr) throw upErr;
+
+      // 2) insert the row.
+      const { error: rowErr } = await supabase.from("documents").insert({
+        id: docId,
+        user_id: userId,
+        project_id: parsed.data.project,
+        name: parsed.data.name,
+        file_path: filePath,
+        mime_type: file.type || "application/octet-stream",
+        size_bytes: file.size,
+        category: parsed.data.category,
+        uploaded_at: new Date().toISOString(),
+      });
+      if (rowErr) {
+        // best-effort cleanup
+        await supabase.storage.from("documents").remove([filePath]).catch(() => {});
+        throw rowErr;
+      }
+
       toast.success("Uploaded", parsed.data.name);
       onOpenChange(false);
       router.refresh();

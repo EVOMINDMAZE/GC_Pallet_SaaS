@@ -11,16 +11,16 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
 import { inventorySchema } from "@/lib/schemas";
 import { toastVariants_enum as toast } from "@/components/ui/toaster";
-import type { InventoryLocation, InventoryUnit, ProjectsRecord } from "@/lib/types";
+import type { InventoryLocation, InventoryUnit, Project } from "@/lib/types";
 
 export function InventoryForm({
   projects,
   defaultProjectId,
 }: {
-  projects: ProjectsRecord[];
+  projects: Project[];
   defaultProjectId?: string;
 }) {
   const router = useRouter();
@@ -52,14 +52,21 @@ export function InventoryForm({
       return;
     }
     try {
-      const pb = getPocketBase();
-      const userId = pb.authStore.model?.id;
-      if (!userId) throw new Error("Not authenticated");
-      await pb.collection("inventory").create({
-        ...parsed.data,
+      const supabase = getSupabase();
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session?.user) throw new Error("Not authenticated");
+      const { error } = await supabase.from("inventory").insert({
+        user_id: sess.session.user.id,
+        project_id: parsed.data.project,
+        item_name: parsed.data.item_name,
+        quantity: Number(parsed.data.quantity),
+        unit: parsed.data.unit,
+        location: parsed.data.location,
+        cost_per_unit:
+          typeof parsed.data.cost_per_unit === "number" ? parsed.data.cost_per_unit : null,
         last_updated: new Date().toISOString(),
-        user: userId,
-      } as never);
+      });
+      if (error) throw error;
       toast.success("Item added");
       (e.target as HTMLFormElement).reset();
       router.refresh();

@@ -66,7 +66,7 @@ export function SharesList({
                   {text}
                 </span>
                 <span className="text-muted-foreground/60">·</span>
-                <span>created {formatDate(s.created)}</span>
+                <span>created {formatDate(s.created_at)}</span>
               </div>
             </div>
             <a

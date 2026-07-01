@@ -1,25 +1,33 @@
 "use client";
 import useSWR from "swr";
-import { getPocketBase } from "@/lib/pocketbase";
-import type { ProjectsRecord } from "@/lib/types";
+import { getSupabase } from "@/lib/supabase";
+import type { Project } from "@/lib/types";
 
 export function useProjects(opts?: { createdAfter?: string }) {
-  const pb = getPocketBase();
+  const supabase = getSupabase();
   const key = opts?.createdAfter ? ["projects", opts.createdAfter] : "projects";
   const createdAfter = opts?.createdAfter;
-  return useSWR<ProjectsRecord[]>(key, async () => {
-    const filter = createdAfter ? `created >= "${createdAfter}"` : "";
-    return (await pb.collection("projects").getFullList({
-      sort: "-created",
-      filter,
-    })) as ProjectsRecord[];
+  return useSWR<Project[]>(key, async () => {
+    let q = supabase.from("projects").select("*").order("created_at", { ascending: false });
+    if (createdAfter) q = q.gte("created_at", createdAfter);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data ?? []) as Project[];
   });
 }
 
 export function useProject(id?: string) {
-  const pb = getPocketBase();
-  return useSWR<ProjectsRecord | null>(id ? ["project", id] : null, async () => {
-    if (!id) return null;
-    return (await pb.collection("projects").getOne(id)) as ProjectsRecord;
-  });
+  const supabase = getSupabase();
+  return useSWR<Project | null>(
+    id ? ["project", id] : null,
+    async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("id", id!)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as Project | null) ?? null;
+    },
+  );
 }

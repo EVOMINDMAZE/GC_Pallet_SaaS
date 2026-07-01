@@ -2,7 +2,7 @@
 import { useProjects } from "@/hooks/useProjects";
 import { useDocuments } from "@/hooks/useDocuments";
 import { useInventory } from "@/hooks/useInventory";
-import type { DocumentsRecord, InventoryRecord, ProjectsRecord } from "@/lib/types";
+import type { DocumentRecord, InventoryItem, Project } from "@/lib/types";
 
 export type DashboardRange = "7d" | "30d" | "all";
 
@@ -29,9 +29,9 @@ export function useDashboardData(range: DashboardRange) {
   const anyError = projects.error || documents.error || inventory.error;
 
   return {
-    projects: (projects.data ?? []) as ProjectsRecord[],
-    documents: (documents.data ?? []) as DocumentsRecord[],
-    inventory: (inventory.data ?? []) as InventoryRecord[],
+    projects: (projects.data ?? []) as Project[],
+    documents: (documents.data ?? []) as DocumentRecord[],
+    inventory: (inventory.data ?? []) as InventoryItem[],
     isLoading: anyLoading,
     error: anyError,
   };

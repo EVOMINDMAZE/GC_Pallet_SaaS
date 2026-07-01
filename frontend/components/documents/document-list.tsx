@@ -12,10 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileText, Upload } from "lucide-react";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
+import { getDocumentSignedUrl } from "@/hooks/useDocuments";
 import { toastVariants_enum as toast } from "@/components/ui/toaster";
 import { formatDate } from "@/lib/format";
-import type { DocumentsRecord } from "@/lib/types";
+import type { DocumentRecord } from "@/lib/types";
 
 const CATEGORY_VARIANT: Record<string, "primary" | "info" | "warning" | "success" | "secondary" | "destructive"> = {
   contract: "primary",
@@ -26,8 +27,33 @@ const CATEGORY_VARIANT: Record<string, "primary" | "info" | "warning" | "success
   other: "secondary",
 };
 
-export function DocumentList({ documents, onUpload }: { documents: DocumentsRecord[]; onUpload?: () => void }) {
+export function DocumentList({ documents, onUpload }: { documents: DocumentRecord[]; onUpload?: () => void }) {
   const router = useRouter();
+
+  async function onDelete(d: DocumentRecord) {
+    if (!confirm("Delete this document?")) return;
+    try {
+      // delete the row first; if it succeeds, remove the file from storage
+      const { error } = await getSupabase().from("documents").delete().eq("id", d.id);
+      if (error) throw error;
+      await getSupabase().storage.from("documents").remove([d.file_path]).catch(() => {});
+      toast.success("Deleted");
+      router.refresh();
+      window.location.reload();
+    } catch (err) {
+      toast.destructive("Error", err instanceof Error ? err.message : "Delete failed");
+    }
+  }
+
+  async function onOpen(d: DocumentRecord) {
+    const url = await getDocumentSignedUrl(d.file_path);
+    if (!url) {
+      toast.destructive("Could not open file");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   if (documents.length === 0) {
     return (
       <EmptyState
@@ -43,18 +69,6 @@ export function DocumentList({ documents, onUpload }: { documents: DocumentsReco
         }
       />
     );
-  }
-
-  async function onDelete(id: string) {
-    if (!confirm("Delete this document?")) return;
-    try {
-      await getPocketBase().collection("documents").delete(id);
-      toast.success("Deleted");
-      router.refresh();
-      window.location.reload();
-    } catch (err) {
-      toast.destructive("Error", err instanceof Error ? err.message : "Delete failed");
-    }
   }
 
   return (
@@ -84,12 +98,10 @@ export function DocumentList({ documents, onUpload }: { documents: DocumentsReco
               </TableCell>
               <TableCell className="text-muted-foreground">{formatDate(d.uploaded_at)}</TableCell>
               <TableCell className="space-x-2 text-right">
-                <a href={getPocketBase().files.getUrl(d, d.file)} target="_blank" rel="noreferrer">
-                  <Button size="sm" variant="outline">
-                    Open
-                  </Button>
-                </a>
-                <Button size="sm" variant="destructive" onClick={() => onDelete(d.id)}>
+                <Button size="sm" variant="outline" onClick={() => onOpen(d)}>
+                  Open
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => onDelete(d)}>
                   Delete
                 </Button>
               </TableCell>

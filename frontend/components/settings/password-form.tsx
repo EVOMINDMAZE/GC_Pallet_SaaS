@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { z } from "zod";
-import { useAuth } from "@/hooks/useAuth";
-import { getPocketBase } from "@/lib/pocketbase";
+import { getSupabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +11,6 @@ import { toast } from "@/components/ui/toaster";
 
 const passwordSchema = z
   .object({
-    oldPassword: z.string().min(1, "Current password is required"),
     password: z.string().min(8, "New password must be at least 8 characters"),
     passwordConfirm: z.string().min(8, "Confirm your new password"),
   })
@@ -22,8 +20,6 @@ const passwordSchema = z
   });
 
 export function PasswordForm() {
-  const { user } = useAuth();
-  const [oldPassword, setOldPassword] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -32,7 +28,7 @@ export function PasswordForm() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrors({});
-    const parsed = passwordSchema.safeParse({ oldPassword, password, passwordConfirm });
+    const parsed = passwordSchema.safeParse({ password, passwordConfirm });
     if (!parsed.success) {
       const next: Record<string, string> = {};
       for (const issue of parsed.error.issues) {
@@ -41,17 +37,13 @@ export function PasswordForm() {
       setErrors(next);
       return;
     }
-    if (!user) return;
     setSaving(true);
     try {
-      const pb = getPocketBase();
-      await pb.collection("users").update(user.id, {
-        oldPassword: parsed.data.oldPassword,
+      const { error } = await getSupabase().auth.updateUser({
         password: parsed.data.password,
-        passwordConfirm: parsed.data.passwordConfirm,
       });
+      if (error) throw error;
       toast({ title: "Password updated", variant: "success" });
-      setOldPassword("");
       setPassword("");
       setPasswordConfirm("");
     } catch (err) {
@@ -70,20 +62,6 @@ export function PasswordForm() {
       </CardHeader>
       <form onSubmit={onSubmit}>
         <CardContent className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="old-password">Current password</Label>
-            <Input
-              id="old-password"
-              type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
-            {errors.oldPassword && (
-              <p className="text-xs text-destructive">{errors.oldPassword}</p>
-            )}
-          </div>
           <div className="grid gap-2">
             <Label htmlFor="new-password">New password</Label>
             <Input
