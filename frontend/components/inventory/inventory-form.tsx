@@ -18,7 +18,7 @@ import {
   updateInventoryItem,
 } from "@/hooks/useInventory";
 import type { InventoryItem, InventoryUnit, InventoryLocation } from "@/lib/types";
-import { Loader2 } from "lucide-react";
+import { Loader2, Info } from "lucide-react";
 
 const UNITS: InventoryUnit[] = ["pieces", "lbs", "kg", "sqft", "sqm"];
 const LOCATIONS: InventoryLocation[] = ["warehouse", "job_site", "in_transit"];
@@ -46,28 +46,43 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
+const DEFAULTS: FormValues = {
+  itemName: "",
+  quantity: "0",
+  unit: "pieces",
+  location: "warehouse",
+  costPerUnit: "",
+  lastUpdated: "",
+};
+
 export function InventoryForm({
   projectId,
+  projectName,
   item,
+  disabled = false,
   onSaved,
 }: {
   projectId: string;
+  projectName?: string;
   item?: InventoryItem;
+  disabled?: boolean;
   onSaved?: (i: InventoryItem) => void;
 }) {
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const { register, handleSubmit, formState, setValue, watch } =
+  const { register, handleSubmit, formState, setValue, watch, reset } =
     useForm<FormValues>({
       resolver: zodResolver(schema),
-      defaultValues: {
-        itemName: item?.itemName ?? "",
-        quantity: item ? String(item.quantity) : "0",
-        unit: item?.unit ?? "pieces",
-        location: item?.location ?? "warehouse",
-        costPerUnit: item?.costPerUnit != null ? String(item.costPerUnit) : "",
-        lastUpdated: item?.lastUpdated ?? "",
-      },
+      defaultValues: item
+        ? {
+            itemName: item.itemName,
+            quantity: String(item.quantity),
+            unit: item.unit,
+            location: item.location,
+            costPerUnit: item.costPerUnit != null ? String(item.costPerUnit) : "",
+            lastUpdated: item.lastUpdated,
+          }
+        : DEFAULTS,
     });
   const unit = watch("unit");
   const location = watch("location");
@@ -99,6 +114,10 @@ export function InventoryForm({
             lastUpdated: values.lastUpdated || undefined,
           });
       onSaved?.(saved);
+      // Clear inputs so the user can add the next item without manual
+      // delete-on-each-field. Skip reset when editing — keep the row's
+      // values so the user can tweak one field and save again.
+      if (!item) reset(DEFAULTS);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save item");
     } finally {
@@ -108,6 +127,20 @@ export function InventoryForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      {projectName && !item && (
+        <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            Adding to <span className="font-medium text-foreground">{projectName}</span>
+          </span>
+        </div>
+      )}
+      {disabled && (
+        <p className="rounded-md border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+          Pick a project from the filter above to enable the form.
+        </p>
+      )}
+      <fieldset disabled={disabled || submitting} className="space-y-4">
       <div className="space-y-1.5">
         <Label htmlFor="itemName">Item name</Label>
         <Input id="itemName" {...register("itemName")} />
@@ -193,11 +226,12 @@ export function InventoryForm({
         </p>
       )}
       <div className="flex justify-end">
-        <Button type="submit" disabled={submitting}>
+        <Button type="submit" disabled={submitting || disabled}>
           {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {item ? "Save changes" : "Add item"}
         </Button>
       </div>
+      </fieldset>
     </form>
   );
 }

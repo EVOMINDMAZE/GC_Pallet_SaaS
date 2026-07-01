@@ -7,7 +7,8 @@ import { InventoryForm } from "@/components/inventory/inventory-form";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableSkeleton } from "@/components/ui/skeleton";
-import { Package } from "lucide-react";
+import { Package, Info } from "lucide-react";
+import { toast } from "@/components/ui/toaster";
 import {
   Select,
   SelectTrigger,
@@ -30,11 +31,13 @@ function InventoryPageInner() {
   const initial = params.get("project") ?? "all";
   const [filter, setFilter] = React.useState<string>(initial);
   const { data: projects } = useProjects();
-  const { data: items, isLoading } = useInventory(
+  const { data: items, isLoading, refresh } = useInventory(
     filter !== "all" ? { projectId: filter } : undefined,
   );
-  const activeProjectId =
-    filter !== "all" ? filter : projects?.[0]?.id ?? "";
+  const isAllProjects = filter === "all";
+  const activeProject = isAllProjects
+    ? null
+    : projects?.find((p) => p.id === filter) ?? null;
 
   return (
     <div className="space-y-6">
@@ -66,11 +69,29 @@ function InventoryPageInner() {
           </Select>
         </CardHeader>
         <CardContent className="space-y-4">
-          {activeProjectId ? (
-            <InventoryForm projectId={activeProjectId} />
-          ) : (
+          {projects && projects.length === 0 ? (
             <p className="rounded-md bg-warning-soft p-4 text-sm text-warning-foreground_soft">
               <strong className="font-semibold">Heads up:</strong> Create a project first to start tracking inventory.
+            </p>
+          ) : isAllProjects ? (
+            <div className="flex items-start gap-2 rounded-md border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Pick a project from the filter above to add an item. Items are scoped to a single project.
+              </span>
+            </div>
+          ) : activeProject ? (
+            <InventoryForm
+              projectId={activeProject.id}
+              projectName={activeProject.name}
+              onSaved={() => {
+                refresh();
+                toast({ title: "Item added" });
+              }}
+            />
+          ) : (
+            <p className="rounded-md bg-warning-soft p-4 text-sm text-warning-foreground_soft">
+              <strong className="font-semibold">Heads up:</strong> The selected project couldn&apos;t be found.
             </p>
           )}
         </CardContent>
