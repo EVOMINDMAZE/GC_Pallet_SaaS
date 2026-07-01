@@ -1,24 +1,30 @@
 "use client";
-import useSWR from "swr";
-import { getPocketBase } from "@/lib/pocketbase";
-import type { UsersRecord } from "@/lib/types";
+import * as React from "react";
+import { useSupabaseAuth } from "@/lib/supabase/provider";
 
+/**
+ * Auth hook for components. Returns the session/user from the
+ * SupabaseAuthProvider context plus a signOut helper. Components
+ * should use this instead of reaching into supabase.auth directly so
+ * the auth state stays in one place.
+ *
+ * @example
+ *   const { user, isAuthenticated, signOut } = useAuth();
+ */
 export function useAuth() {
-  const pb = getPocketBase();
-  const { data, isLoading, mutate } = useSWR<UsersRecord | null>("auth-user", async () => {
-    if (!pb.authStore.model) return null;
-    try {
-      return (await pb.collection("users").getOne(pb.authStore.model.id)) as UsersRecord;
-    } catch {
-      return null;
-    }
-  });
-
+  const { session, user, isLoading, signOut, isAuthenticated } = useSupabaseAuth();
   return {
-    user: data ?? null,
-    isAuthenticated: !!pb.authStore.model,
+    user,
+    session,
     isLoading,
-    refresh: mutate,
-    logout: () => pb.authStore.clear(),
+    isAuthenticated,
+    signOut,
+    /** Convenience: the current user id, or null if signed out. */
+    userId: user?.id ?? null,
+    /** Convenience: the user's display name from user_metadata. */
+    displayName:
+      (user?.user_metadata?.name as string | undefined) ??
+      user?.email?.split("@")[0] ??
+      "",
   };
 }

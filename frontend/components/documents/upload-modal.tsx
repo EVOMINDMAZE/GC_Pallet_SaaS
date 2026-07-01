@@ -1,141 +1,165 @@
 "use client";
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { uploadDocument } from "@/hooks/useDocuments";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { getPocketBase } from "@/lib/pocketbase";
-import { documentSchema } from "@/lib/schemas";
-import { toastVariants_enum as toast } from "@/components/ui/toaster";
-import type { DocumentCategory, ProjectsRecord } from "@/lib/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "@/components/ui/toaster";
+import { Loader2, Upload } from "lucide-react";
+import type { DocumentCategory } from "@/lib/types";
 
-export function UploadModal({
+const CATEGORIES: DocumentCategory[] = [
+  "contract",
+  "permit",
+  "invoice",
+  "receipt",
+  "photo",
+  "other",
+];
+
+export function UploadDocumentModal({
+  projectId,
   open,
   onOpenChange,
-  projects,
+  onUploaded,
 }: {
+  projectId: string;
   open: boolean;
-  onOpenChange: (o: boolean) => void;
-  projects: ProjectsRecord[];
+  onOpenChange: (open: boolean) => void;
+  onUploaded?: () => void;
 }) {
-  const router = useRouter();
+  const [file, setFile] = React.useState<File | null>(null);
+  const [name, setName] = React.useState("");
+  const [category, setCategory] = React.useState<DocumentCategory>("other");
   const [submitting, setSubmitting] = React.useState(false);
-  const [category, setCategory] = React.useState<DocumentCategory>("contract");
-  const [project, setProject] = React.useState<string>(projects[0]?.id ?? "");
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!project && projects.length > 0) setProject(projects[0].id);
-  }, [projects, project]);
+    if (!open) {
+      setFile(null);
+      setName("");
+      setCategory("other");
+      setError(null);
+    }
+  }, [open]);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    const fd = new FormData(e.currentTarget);
-    const file = fd.get("file") as File | null;
-    const parsed = documentSchema.safeParse({
-      name: fd.get("name"),
-      category,
-      project,
-      file,
-    });
-    if (!parsed.success) {
-      toast.destructive("Validation error", parsed.error.issues[0]?.message);
-      setSubmitting(false);
-      return;
-    }
+    setError(null);
     if (!file) {
-      toast.destructive("File required");
-      setSubmitting(false);
+      setError("Please choose a file.");
       return;
     }
+    if (!name.trim()) {
+      setError("Please give the document a name.");
+      return;
+    }
+    setSubmitting(true);
     try {
-      const pb = getPocketBase();
-      const userId = pb.authStore.model?.id;
-      if (!userId) throw new Error("Not authenticated");
-      const fd2 = new FormData();
-      fd2.append("name", parsed.data.name);
-      fd2.append("category", parsed.data.category);
-      fd2.append("project", parsed.data.project);
-      fd2.append("uploaded_at", new Date().toISOString());
-      fd2.append("user", userId);
-      fd2.append("file", file);
-      await pb.collection("documents").create(fd2);
-      toast.success("Uploaded", parsed.data.name);
+      await uploadDocument({
+        projectId,
+        name: name.trim(),
+        category,
+        file,
+      });
+      toast({ title: "Document uploaded" });
+      onUploaded?.();
       onOpenChange(false);
-      router.refresh();
-      window.location.reload();
     } catch (err) {
-      toast.destructive("Upload failed", err instanceof Error ? err.message : "Error");
+      setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setSubmitting(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Upload document</DialogTitle>
-          <DialogDescription>PDF or image, up to 50MB.</DialogDescription>
+          <DialogDescription>
+            Add a contract, permit, photo, or other file to this project.
+          </DialogDescription>
         </DialogHeader>
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <div className="grid gap-2">
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-1.5">
             <Label htmlFor="doc-name">Name</Label>
-            <Input id="doc-name" name="name" required placeholder="Building Permit #42" />
+            <Input
+              id="doc-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Site survey photos"
+            />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="doc-project">Project</Label>
-            <Select value={project} onValueChange={setProject}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select project" />
+          <div className="space-y-1.5">
+            <Label htmlFor="doc-category">Category</Label>
+            <Select
+              value={category}
+              onValueChange={(v) => setCategory(v as DocumentCategory)}
+            >
+              <SelectTrigger id="doc-category">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
+                {CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="doc-category">Category</Label>
-            <Select value={category} onValueChange={(v) => setCategory(v as DocumentCategory)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(["contract", "permit", "invoice", "receipt", "photo", "other"] as DocumentCategory[]).map(
-                  (c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  )
-                )}
-              </SelectContent>
-            </Select>
+          <div className="space-y-1.5">
+            <Label htmlFor="doc-file">File</Label>
+            <Input
+              id="doc-file"
+              type="file"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+            {file && (
+              <p className="text-xs text-muted-foreground">
+                {file.name} ({Math.round(file.size / 1024)} KB)
+              </p>
+            )}
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="doc-file">File (PDF or image)</Label>
-            <Input id="doc-file" name="file" type="file" accept="application/pdf,image/*" required />
-          </div>
-          <Button type="submit" variant="primary" className="w-full" disabled={submitting}>
-            {submitting ? "Uploading…" : "Upload"}
-          </Button>
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 h-4 w-4" />
+              )}
+              Upload
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

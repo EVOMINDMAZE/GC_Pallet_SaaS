@@ -1,106 +1,105 @@
 "use client";
+import * as React from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
-import { FolderKanban, FileText, Plus, ChevronRight } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useProjects } from "@/hooks/useProjects";
-import { useDocuments } from "@/hooks/useDocuments";
-import { getPocketBase } from "@/lib/pocketbase";
-import { formatDate, formatCurrency } from "@/lib/format";
+import { useInventory } from "@/hooks/useInventory";
+import { Skeleton } from "@/components/ui/skeleton";
+import { FolderOpen, Package, FileText, Share2 } from "lucide-react";
 
+/**
+ * Recent activity for the dashboard. Shows the four most recently
+ * updated projects, the latest inventory change, and the latest
+ * share. Renders placeholders on first paint to avoid a hydration
+ * mismatch (server can't know the user's data).
+ */
 export function RecentActivity() {
-  const { data: projects, isLoading: lp } = useProjects();
-  const { data: docs, isLoading: ld } = useDocuments();
+  const { data: projects, isLoading: projectsLoading } = useProjects();
+  const { data: items, isLoading: itemsLoading } = useInventory();
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
 
-  const recentProjects = (projects ?? []).slice(0, 5);
-  const recentDocs = (docs ?? []).slice(0, 5);
+  if (!mounted || projectsLoading || itemsLoading) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
+      </div>
+    );
+  }
+
+  const topProjects = projects.slice(0, 4);
+  const topItems = items.slice(0, 5);
+  const totalProjects = projects.length;
+  const totalItems = items.length;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle>Recent projects</CardTitle>
-          <Link href="/projects" className="text-xs font-medium text-gcpallet-primary hover:underline">
-            View all
-          </Link>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Projects</CardTitle>
+          <FolderOpen className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
-        <CardContent className="space-y-1 px-2 pb-2">
-          {lp ? (
-            <div className="px-3 py-6 text-sm text-muted-foreground">Loading…</div>
-          ) : recentProjects.length === 0 ? (
-            <EmptyState
-              icon={<FolderKanban className="h-6 w-6" />}
-              title="No projects yet"
-              description="Start by creating your first site."
-              action={
-                <Button asChild variant="primary">
-                  <Link href="/projects/new"><Plus className="h-4 w-4" /> New Project</Link>
-                </Button>
-              }
-            />
-          ) : (
-            recentProjects.map((p) => (
+        <CardContent>
+          <div className="text-2xl font-bold">{totalProjects}</div>
+          <p className="text-xs text-muted-foreground">
+            {topProjects[0]?.name ?? "No projects yet"}
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Inventory items</CardTitle>
+          <Package className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{totalItems}</div>
+          <p className="text-xs text-muted-foreground">
+            {topItems[0]?.itemName ?? "No items yet"}
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Latest project</CardTitle>
+          <FileText className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          {topProjects[0] ? (
+            <>
               <Link
-                key={p.id}
-                href={`/projects/${p.id}`}
-                className="flex items-center justify-between rounded-md px-3 py-3 hover:bg-gcpallet-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gcpallet-primary"
+                href={`/projects/${topProjects[0].id}`}
+                className="text-sm font-medium hover:underline"
               >
-                <div>
-                  <div className="text-body-strong text-foreground">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">{formatDate(p.start_date)}</div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm tabular-nums text-muted-foreground">
-                    {formatCurrency(p.budget)}
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
+                {topProjects[0].name}
               </Link>
-            ))
+              <CardDescription className="mt-1">
+                {topProjects[0].status.replace("_", " ")} ·{" "}
+                {new Date(topProjects[0].updatedAt).toLocaleDateString()}
+              </CardDescription>
+            </>
+          ) : (
+            <CardDescription>No projects yet.</CardDescription>
           )}
         </CardContent>
       </Card>
-
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle>Recent documents</CardTitle>
-          <Link href="/documents" className="text-xs font-medium text-gcpallet-primary hover:underline">
-            View all
-          </Link>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Shares</CardTitle>
+          <Share2 className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
-        <CardContent className="space-y-1 px-2 pb-2">
-          {ld ? (
-            <div className="px-3 py-6 text-sm text-muted-foreground">Loading…</div>
-          ) : recentDocs.length === 0 ? (
-            <EmptyState
-              icon={<FileText className="h-6 w-6" />}
-              title="No documents yet"
-              description="Upload a permit or contract to get started."
-            />
-          ) : (
-            recentDocs.map((d) => (
-              <div
-                key={d.id}
-                className="flex items-center justify-between rounded-md px-3 py-3 hover:bg-gcpallet-muted"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-body-strong text-foreground">{d.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {d.category} · {formatDate(d.uploaded_at)}
-                  </div>
-                </div>
-                <a
-                  href={getPocketBase().files.getUrl(d, d.file)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-gcpallet-primary hover:underline"
-                >
-                  Open
-                </a>
-              </div>
-            ))
-          )}
+        <CardContent>
+          <CardDescription>
+            Manage your active share links from the project page.
+          </CardDescription>
         </CardContent>
       </Card>
     </div>

@@ -1,145 +1,171 @@
 "use client";
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPocketBase } from "@/lib/pocketbase";
-import { projectSchema, type ProjectInput } from "@/lib/schemas";
-import { toast } from "@/components/ui/toaster";
-import type { ProjectsRecord, ProjectStatus } from "@/lib/types";
+import {
+  createProject,
+  updateProject,
+  type ProjectInput,
+} from "@/hooks/useProjects";
+import type { Project, ProjectStatus } from "@/lib/types";
+import { Loader2 } from "lucide-react";
 
-const STATUS_LABELS: Record<ProjectStatus, string> = {
-  planning: "Planning",
-  active: "Active",
-  completed: "Completed",
-  on_hold: "On hold",
-  draft: "Draft",
-  procurement: "Procurement",
-};
+const STATUS_VALUES = [
+  "planning",
+  "active",
+  "completed",
+  "on_hold",
+  "draft",
+  "procurement",
+] as const satisfies readonly ProjectStatus[];
 
-export function ProjectForm({ initial, projectId }: { initial?: ProjectsRecord; projectId?: string }) {
-  const router = useRouter();
+const schema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+  address: z.string().max(500).optional().or(z.literal("")),
+  budget: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (v) => !v || (!Number.isNaN(Number(v)) && Number(v) >= 0),
+      "Budget must be a non-negative number",
+    ),
+  startDate: z.string().optional().or(z.literal("")),
+  endDate: z.string().optional().or(z.literal("")),
+  status: z.enum(STATUS_VALUES),
+});
+type FormValues = z.infer<typeof schema>;
+
+export function ProjectForm({
+  project,
+  onSaved,
+}: {
+  project?: Project;
+  onSaved?: (p: Project) => void;
+}) {
   const [submitting, setSubmitting] = React.useState(false);
-  const [status, setStatus] = React.useState<ProjectStatus>(initial?.status ?? "planning");
+  const [error, setError] = React.useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const { register, handleSubmit, formState, setValue, watch } =
+    useForm<FormValues>({
+      resolver: zodResolver(schema),
+      defaultValues: {
+        name: project?.name ?? "",
+        address: project?.address ?? "",
+        budget: project?.budget != null ? String(project.budget) : "",
+        startDate: project?.startDate ?? "",
+        endDate: project?.endDate ?? "",
+        status: project?.status ?? "planning",
+      },
+    });
+
+  const status = watch("status");
+
+  const onSubmit = handleSubmit(async (values) => {
+    setError(null);
     setSubmitting(true);
-    const fd = new FormData(e.currentTarget);
-    const parsed = projectSchema.safeParse({ ...Object.fromEntries(fd.entries()), status });
-    if (!parsed.success) {
-      toast({
-        title: "Validation error",
-        description: parsed.error.issues[0]?.message,
-        variant: "destructive",
-      });
-      setSubmitting(false);
-      return;
-    }
-    const data: ProjectInput = parsed.data;
+    const input: ProjectInput = {
+      name: values.name,
+      address: values.address || null,
+      budget: values.budget ? Number(values.budget) : null,
+      startDate: values.startDate || null,
+      endDate: values.endDate || null,
+      status: values.status,
+    };
     try {
-      const pb = getPocketBase();
-      const userId = pb.authStore.model?.id;
-      if (!userId) throw new Error("Not authenticated");
-
-      if (projectId) {
-        await pb.collection("projects").update(projectId, data);
-        toast({ title: "Project updated", variant: "success" });
-      } else {
-        await pb.collection("projects").create({ ...data, user: userId });
-        toast({ title: "Project created", variant: "success" });
-      }
-      window.location.href = "/projects";
-    } catch (err) {
-      toast({
-        title: "Save failed",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "destructive",
-      });
+      const saved = project
+        ? await updateProject(project.id, input)
+        : await createProject(input);
+      onSaved?.(saved);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save project");
     } finally {
       setSubmitting(false);
     }
-  }
+  });
 
   return (
-    <form className="space-y-6" onSubmit={onSubmit}>
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>{projectId ? "Edit project" : "New project"}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-2">
-            <Label htmlFor="name">Project name</Label>
-            <Input id="name" name="name" required defaultValue={initial?.name} placeholder="Riverside Tower" />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="address">Site address</Label>
-            <Input id="address" name="address" defaultValue={initial?.address} placeholder="123 Riverside Dr, Springfield" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="budget">Budget</Label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-                <Input
-                  id="budget"
-                  name="budget"
-                  type="number"
-                  min="0"
-                  step="1000"
-                  defaultValue={initial?.budget ?? ""}
-                  className="pl-7"
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as ProjectStatus)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(STATUS_LABELS) as ProjectStatus[]).map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {STATUS_LABELS[s]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="start_date">Start date</Label>
-              <Input id="start_date" name="start_date" type="date" defaultValue={initial?.start_date} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="end_date">End date</Label>
-              <Input id="end_date" name="end_date" type="date" defaultValue={initial?.end_date} />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Sticky footer */}
-      <div className="sticky bottom-0 -mx-6 mt-2 flex items-center justify-end gap-3 border-t border-border bg-background/85 px-6 py-4 backdrop-blur">
-        <Button type="button" variant="outline" onClick={() => router.back()} disabled={submitting}>
-          Cancel
-        </Button>
-        <Button type="submit" variant="primary" disabled={submitting}>
-          {submitting ? "Saving…" : "Save project"}
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="name">Name</Label>
+        <Input id="name" {...register("name")} />
+        {formState.errors.name && (
+          <p className="text-xs text-destructive">
+            {formState.errors.name.message}
+          </p>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="address">Address</Label>
+        <Textarea id="address" rows={2} {...register("address")} />
+        {formState.errors.address && (
+          <p className="text-xs text-destructive">
+            {formState.errors.address.message}
+          </p>
+        )}
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="budget">Budget (USD)</Label>
+          <Input
+            id="budget"
+            inputMode="decimal"
+            {...register("budget")}
+          />
+          {formState.errors.budget && (
+            <p className="text-xs text-destructive">
+              {formState.errors.budget.message}
+            </p>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="startDate">Start date</Label>
+          <Input id="startDate" type="date" {...register("startDate")} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="endDate">End date</Label>
+          <Input id="endDate" type="date" {...register("endDate")} />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="status">Status</Label>
+        <Select
+          value={status}
+          onValueChange={(v) => setValue("status", v as ProjectStatus)}
+        >
+          <SelectTrigger id="status">
+            <SelectValue placeholder="Select a status" />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_VALUES.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s.replace("_", " ")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button type="submit" disabled={submitting}>
+          {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {project ? "Save changes" : "Create project"}
         </Button>
       </div>
     </form>

@@ -38,7 +38,7 @@ export function SharesList({
   return (
     <ul className="space-y-2">
       {shares.map((s) => {
-        const { text, tone } = expiresLabel(s.expires_at);
+        const { text, tone } = expiresLabel(s.expiresAt);
         return (
           <li
             key={s.id}
@@ -48,7 +48,7 @@ export function SharesList({
               <div className="flex items-center gap-2 text-xs">
                 <Eye className="h-3 w-3 text-muted-foreground" />
                 <span className="font-mono text-foreground">
-                  {s.view_count ?? 0}
+                  {s.viewCount ?? 0}
                 </span>
                 <span className="text-muted-foreground">views</span>
               </div>
@@ -66,7 +66,7 @@ export function SharesList({
                   {text}
                 </span>
                 <span className="text-muted-foreground/60">·</span>
-                <span>created {formatDate(s.created)}</span>
+                <span>created {formatDate(s.createdAt)}</span>
               </div>
             </div>
             <a

@@ -4,10 +4,10 @@
  * Buckets an array of records into per-day counts for the last N days.
  * Used by sparklines and the documents timeline.
  */
-export function bucketByDay<T extends { created?: string; uploaded_at?: string; last_updated?: string }>(
+export function bucketByDay<T extends { createdAt?: string; uploadedAt?: string; lastUpdated?: string; created?: string; uploaded_at?: string; last_updated?: string }>(
   records: T[],
   days: number,
-  field: keyof T = "created"
+  field: keyof T = "createdAt"
 ): { date: string; count: number; iso: string }[] {
   const out: { date: string; count: number; iso: string }[] = [];
   const today = new Date();

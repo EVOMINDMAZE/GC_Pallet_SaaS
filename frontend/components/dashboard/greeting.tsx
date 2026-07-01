@@ -9,7 +9,11 @@ export function Greeting() {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
-  const firstName = user?.name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
+  const meta = (user?.user_metadata ?? {}) as Record<string, unknown>;
+  const firstName =
+    (typeof meta.name === "string" ? meta.name : "")?.split(" ")[0] ||
+    user?.email?.split("@")[0] ||
+    "there";
   if (!mounted) {
     return (
       <p className="text-sm text-muted-foreground">

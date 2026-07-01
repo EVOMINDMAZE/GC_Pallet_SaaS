@@ -22,6 +22,12 @@ const EXPIRY_OPTIONS: { id: Expiry; label: string; description: string }[] = [
   { id: "never", label: "No expiry", description: "Until you revoke it" },
 ];
 
+function expiryToIso(e: Expiry): string | null {
+  if (e === "never") return null;
+  const days = e === "1d" ? 1 : e === "7d" ? 7 : 30;
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
 export function ShareDialog({
   open,
   onOpenChange,
@@ -38,7 +44,7 @@ export function ShareDialog({
   const [latestUrl, setLatestUrl] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const { data: shares, mutate } = useProjectShares(open ? projectId : null);
+  const { data: shares, refresh } = useProjectShares(open ? projectId : null);
 
   // Reset state when the dialog re-opens.
   React.useEffect(() => {
@@ -53,9 +59,12 @@ export function ShareDialog({
     setCreating(true);
     setError(null);
     try {
-      const res = await createShare({ resourceId: projectId, expiresIn: expiry });
+      const res = await createShare({
+        resourceId: projectId,
+        expiresAt: expiryToIso(expiry),
+      });
       setLatestUrl(res.url);
-      await mutate();
+      await refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -73,7 +82,7 @@ export function ShareDialog({
   const onRevoke = async (token: string) => {
     try {
       await revokeShare(token);
-      await mutate();
+      await refresh();
     } catch (e) {
       setError((e as Error).message);
     }

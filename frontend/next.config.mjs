@@ -1,29 +1,22 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Standalone build produces a minimal server bundle for the Docker image.
-  // Without this, the runtime image would need to ship the whole `node_modules`.
+  // Standalone build produces a minimal server bundle for Vercel's
+  // serverless functions (and for any future self-hosted run too).
   output: "standalone",
+  // Allow large document uploads (50 MB matches the Supabase Storage
+  // bucket file_size_limit we set up in the migration).
   experimental: { serverActions: { bodySizeLimit: "55mb" } },
-  // Proxy PocketBase so the SDK can call it on the same origin (avoids
-  // mixed-content / cross-origin pain when the browser is on a preview URL).
-  async rewrites() {
-    return [
-      { source: "/api/pb/:path*", destination: "http://127.0.0.1:8090/:path*" },
-    ];
-  },
-  // Force the preview URL gateway to NOT cache JS chunks — otherwise users
-  // keep loading stale SDK code that hardcodes the old absolute PB URL.
-  async headers() {
-    return [
+  images: {
+    // Supabase Storage URLs are allowed for next/image. We don't
+    // currently use next/image on the dashboard but it's wired up
+    // here for future use.
+    remotePatterns: [
       {
-        source: "/_next/static/:path*",
-        headers: [
-          { key: "Cache-Control", value: "no-store, must-revalidate" },
-          { key: "Pragma", value: "no-cache" },
-        ],
+        protocol: "https",
+        hostname: "ypcghozdhyrbkchwotyq.supabase.co",
       },
-    ];
+    ],
   },
 };
 export default nextConfig;

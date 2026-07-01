@@ -1,124 +1,157 @@
 "use client";
-
-import { useState, useEffect } from "react";
-import { z } from "zod";
+import * as React from "react";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getPocketBase } from "@/lib/pocketbase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { toast } from "@/components/ui/toaster";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
-const profileSchema = z.object({
-  name: z.string().min(1, "Name is required").max(120),
-  company_name: z.string().max(160).optional().or(z.literal("")),
-  phone: z.string().max(40).optional().or(z.literal("")),
-});
-
+/**
+ * Editable profile fields. We seed the form from the user_metadata
+ * stored in the auth user record (name, company_name, phone) and
+ * upsert to public.profiles on submit. RLS scopes the upsert to the
+ * signed-in user's own row.
+ */
 export function ProfileForm() {
-  const { user, refresh } = useAuth();
-  const [name, setName] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
-  // Seed form values from the auth user only after mount so the
-  // server-rendered (empty) input values match the first client paint.
-  useEffect(() => {
-    if (user) {
-      setName(user.name ?? "");
-      setCompanyName(user.company_name ?? "");
-      setPhone(user.phone ?? "");
-    }
+  const { user } = useAuth();
+  const [name, setName] = React.useState("");
+  const [companyName, setCompanyName] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+  const [message, setMessage] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!user) return;
+    const supabase = getSupabaseBrowser();
+    let active = true;
+    (async () => {
+      // First read the public.profiles row, then fall back to
+      // user_metadata if there's no row yet (shouldn't happen because
+      // of the handle_new_user trigger, but be defensive).
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name,company_name,phone")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!active) return;
+      const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+      setName(
+        profile?.name ??
+          (typeof meta.name === "string" ? meta.name : "") ??
+          "",
+      );
+      setCompanyName(
+        profile?.company_name ??
+          (typeof meta.company_name === "string" ? meta.company_name : "") ??
+          "",
+      );
+      setPhone(
+        profile?.phone ??
+          (typeof meta.phone === "string" ? meta.phone : "") ??
+          "",
+      );
+      setLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
   }, [user]);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrors({});
-    const parsed = profileSchema.safeParse({
-      name,
-      company_name: companyName,
-      phone,
-    });
-    if (!parsed.success) {
-      const next: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        next[issue.path.join(".")] = issue.message;
-      }
-      setErrors(next);
-      return;
-    }
     if (!user) return;
     setSaving(true);
-    try {
-      const pb = getPocketBase();
-      await pb.collection("users").update(user.id, {
-        name: parsed.data.name,
-        company_name: parsed.data.company_name || "",
-        phone: parsed.data.phone || "",
+    setMessage(null);
+    setError(null);
+    const supabase = getSupabaseBrowser();
+    const { error: upsertErr } = await supabase
+      .from("profiles")
+      .upsert({
+        id: user.id,
+        name: name.trim(),
+        company_name: companyName.trim() || null,
+        phone: phone.trim() || null,
       });
-      await refresh();
-      toast({ title: "Profile saved", variant: "success" });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not save profile";
-      toast({ title: "Save failed", description: msg, variant: "destructive" });
-    } finally {
-      setSaving(false);
+    setSaving(false);
+    if (upsertErr) {
+      setError(upsertErr.message);
+      return;
     }
+    setMessage("Profile saved.");
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center p-10">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Profile</CardTitle>
-        <CardDescription>Update your name, company, and phone number.</CardDescription>
+        <CardDescription>
+          Update your name, company, and phone number.
+        </CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="profile-name">Full name</Label>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="pf-name">Full name</Label>
             <Input
-              id="profile-name"
+              id="pf-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              autoComplete="name"
               required
             />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name}</p>
-            )}
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="profile-company">Company name</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="pf-company">Company</Label>
             <Input
-              id="profile-company"
+              id="pf-company"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              autoComplete="organization"
-              placeholder="Acme Builders"
             />
-            {errors.company_name && (
-              <p className="text-xs text-destructive">{errors.company_name}</p>
-            )}
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="profile-phone">Phone</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="pf-phone">Phone</Label>
             <Input
-              id="profile-phone"
+              id="pf-phone"
+              type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              autoComplete="tel"
-              placeholder="+1 555 010 0000"
             />
-            {errors.phone && (
-              <p className="text-xs text-destructive">{errors.phone}</p>
-            )}
           </div>
+          {message && (
+            <p className="text-sm text-emerald-600 dark:text-emerald-400">
+              {message}
+            </p>
+          )}
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
         </CardContent>
-        <CardFooter className="justify-end">
-          <Button type="submit" variant="primary" disabled={saving}>
-            {saving ? "Saving…" : "Save changes"}
+        <CardFooter>
+          <Button type="submit" disabled={saving}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save changes
           </Button>
         </CardFooter>
       </form>

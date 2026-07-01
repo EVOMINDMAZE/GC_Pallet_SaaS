@@ -1,121 +1,140 @@
 "use client";
-
-import { useState } from "react";
-import { z } from "zod";
-import { useAuth } from "@/hooks/useAuth";
-import { getPocketBase } from "@/lib/pocketbase";
+import * as React from "react";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { toast } from "@/components/ui/toaster";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
-const passwordSchema = z
-  .object({
-    oldPassword: z.string().min(1, "Current password is required"),
-    password: z.string().min(8, "New password must be at least 8 characters"),
-    passwordConfirm: z.string().min(8, "Confirm your new password"),
-  })
-  .refine((v) => v.password === v.passwordConfirm, {
-    path: ["passwordConfirm"],
-    message: "Passwords do not match",
-  });
-
+/**
+ * Supabase password update. Requires the user to re-authenticate with
+ * their current password (Supabase's updateUser is gated by the
+ * recent-session window). We reauth first, then update.
+ */
 export function PasswordForm() {
-  const { user } = useAuth();
-  const [oldPassword, setOldPassword] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
+  const [current, setCurrent] = React.useState("");
+  const [next, setNext] = React.useState("");
+  const [confirm, setConfirm] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [message, setMessage] = React.useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrors({});
-    const parsed = passwordSchema.safeParse({ oldPassword, password, passwordConfirm });
-    if (!parsed.success) {
-      const next: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        next[issue.path.join(".")] = issue.message;
-      }
-      setErrors(next);
+    setError(null);
+    setMessage(null);
+    if (next.length < 8) {
+      setError("New password must be at least 8 characters.");
       return;
     }
-    if (!user) return;
-    setSaving(true);
-    try {
-      const pb = getPocketBase();
-      await pb.collection("users").update(user.id, {
-        oldPassword: parsed.data.oldPassword,
-        password: parsed.data.password,
-        passwordConfirm: parsed.data.passwordConfirm,
-      });
-      toast({ title: "Password updated", variant: "success" });
-      setOldPassword("");
-      setPassword("");
-      setPasswordConfirm("");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not update password";
-      toast({ title: "Update failed", description: msg, variant: "destructive" });
-    } finally {
-      setSaving(false);
+    if (next !== confirm) {
+      setError("New password and confirmation don't match.");
+      return;
     }
-  }
+    setBusy(true);
+    const supabase = getSupabaseBrowser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.email) {
+      setError("Not signed in.");
+      setBusy(false);
+      return;
+    }
+    // Reauth with the current password to refresh the session,
+    // otherwise updateUser can throw "Auth session missing" on
+    // password-change windows.
+    const { error: reauthErr } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: current,
+    });
+    if (reauthErr) {
+      setError("Current password is incorrect.");
+      setBusy(false);
+      return;
+    }
+    const { error: updateErr } = await supabase.auth.updateUser({
+      password: next,
+    });
+    setBusy(false);
+    if (updateErr) {
+      setError(updateErr.message);
+      return;
+    }
+    setCurrent("");
+    setNext("");
+    setConfirm("");
+    setMessage("Password updated.");
+  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Security</CardTitle>
-        <CardDescription>Change your password. You will not be signed out.</CardDescription>
+        <CardTitle>Change password</CardTitle>
+        <CardDescription>
+          Enter your current password, then choose a new one.
+        </CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="old-password">Current password</Label>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="pw-current">Current password</Label>
             <Input
-              id="old-password"
+              id="pw-current"
               type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
               autoComplete="current-password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
               required
             />
-            {errors.oldPassword && (
-              <p className="text-xs text-destructive">{errors.oldPassword}</p>
-            )}
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="new-password">New password</Label>
-            <Input
-              id="new-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-            />
-            {errors.password && (
-              <p className="text-xs text-destructive">{errors.password}</p>
-            )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="pw-next">New password</Label>
+              <Input
+                id="pw-next"
+                type="password"
+                autoComplete="new-password"
+                value={next}
+                onChange={(e) => setNext(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="pw-confirm">Confirm</Label>
+              <Input
+                id="pw-confirm"
+                type="password"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+              />
+            </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="confirm-password">Confirm new password</Label>
-            <Input
-              id="confirm-password"
-              type="password"
-              value={passwordConfirm}
-              onChange={(e) => setPasswordConfirm(e.target.value)}
-              autoComplete="new-password"
-              required
-            />
-            {errors.passwordConfirm && (
-              <p className="text-xs text-destructive">{errors.passwordConfirm}</p>
-            )}
-          </div>
+          {message && (
+            <p className="text-sm text-emerald-600 dark:text-emerald-400">
+              {message}
+            </p>
+          )}
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
         </CardContent>
-        <CardFooter className="justify-end">
-          <Button type="submit" variant="primary" disabled={saving}>
-            {saving ? "Updating…" : "Update password"}
+        <CardFooter>
+          <Button type="submit" disabled={busy}>
+            {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Update password
           </Button>
         </CardFooter>
       </form>

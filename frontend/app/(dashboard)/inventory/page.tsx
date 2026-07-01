@@ -30,7 +30,11 @@ function InventoryPageInner() {
   const initial = params.get("project") ?? "all";
   const [filter, setFilter] = React.useState<string>(initial);
   const { data: projects } = useProjects();
-  const { data: items, isLoading } = useInventory(filter !== "all" ? { projectId: filter } : undefined);
+  const { data: items, isLoading } = useInventory(
+    filter !== "all" ? { projectId: filter } : undefined,
+  );
+  const activeProjectId =
+    filter !== "all" ? filter : projects?.[0]?.id ?? "";
 
   return (
     <div className="space-y-6">
@@ -62,13 +66,9 @@ function InventoryPageInner() {
           </Select>
         </CardHeader>
         <CardContent className="space-y-4">
-          {projects && projects.length > 0 && (
-            <InventoryForm
-              projects={projects}
-              defaultProjectId={filter !== "all" ? filter : undefined}
-            />
-          )}
-          {projects && projects.length === 0 && (
+          {activeProjectId ? (
+            <InventoryForm projectId={activeProjectId} />
+          ) : (
             <p className="rounded-md bg-warning-soft p-4 text-sm text-warning-foreground_soft">
               <strong className="font-semibold">Heads up:</strong> Create a project first to start tracking inventory.
             </p>

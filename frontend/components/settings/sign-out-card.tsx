@@ -1,35 +1,37 @@
 "use client";
-
-import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { getPocketBase } from "@/lib/pocketbase";
-import { toast } from "@/components/ui/toaster";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
+/**
+ * Sign-out button. The actual signOut is in the auth hook (Supabase
+ * call + redirect + refresh). This is just the UI card.
+ */
 export function SignOutCard() {
-  const router = useRouter();
-  async function logout() {
-    const pb = getPocketBase();
-    pb.authStore.clear();
-    toast({ title: "Signed out" });
-    router.push("/login");
-    router.refresh();
-  }
+  const { signOut } = useAuth();
   return (
     <Card>
       <CardHeader>
         <CardTitle>Sign out</CardTitle>
-        <CardDescription>End your current session on this device.</CardDescription>
+        <CardDescription>
+          End your session on this device.
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="text-body text-muted-foreground">
-          You will be returned to the sign-in screen. Your data stays safe.
+        <p className="text-sm text-muted-foreground">
+          You can always sign back in with your email and password.
         </p>
       </CardContent>
-      <CardFooter className="justify-end">
-        <Button type="button" variant="destructive" onClick={logout}>
-          <LogOut className="mr-2 h-4 w-4" /> Sign out
+      <CardFooter>
+        <Button variant="destructive" onClick={signOut}>
+          Sign out
         </Button>
       </CardFooter>
     </Card>

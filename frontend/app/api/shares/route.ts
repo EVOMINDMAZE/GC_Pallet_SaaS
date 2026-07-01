@@ -1,102 +1,94 @@
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getAdminPocketBase } from "@/lib/pb-admin";
-import { randomToken } from "@/lib/share-token";
-
-// Runs in the Node.js runtime — Edge can't do PB server-side auth.
-export const runtime = "nodejs";
-
-const EXPIRY_MS: Record<string, number | null> = {
-  "1d": 24 * 60 * 60 * 1000,
-  "7d": 7 * 24 * 60 * 60 * 1000,
-  "30d": 30 * 24 * 60 * 60 * 1000,
-  never: null,
-};
+import { NextResponse, type NextRequest } from "next/server";
+import { getSupabaseServer } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { generateShareToken } from "@/lib/share-token";
 
 /**
- * POST /api/shares
- *   body: { resourceId: string, expiresIn?: "1d" | "7d" | "30d" | "never" }
+ * POST /api/shares — create a share link for a project.
  *
- * Creates a new share record owned by the current user. Returns the
- * token, public URL, and ISO expiry (null = never).
+ * Body: { resourceId, label?, expiresAt? }
+ *
+ * The caller must own the project (RLS enforces this). The token is
+ * generated server-side with crypto-grade randomness; we use the
+ * service_role key only to insert, after we've verified the caller
+ * is the project owner via the user-scoped client.
  */
 export async function POST(req: NextRequest) {
-  const cookieStore = cookies();
-  const pbAuthCookie = cookieStore.get("pb_auth")?.value;
-  if (!pbAuthCookie) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  let body: { resourceId?: string; expiresIn?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-  if (!body.resourceId) {
+  const body = await req.json().catch(() => ({}));
+  const resourceId = body?.resourceId as string | undefined;
+  const label = (body?.label as string | null | undefined) ?? null;
+  const expiresAt = (body?.expiresAt as string | null | undefined) ?? null;
+  if (!resourceId) {
     return NextResponse.json({ error: "resourceId required" }, { status: 400 });
   }
-  const expiresIn = (body.expiresIn as keyof typeof EXPIRY_MS) ?? "7d";
-  if (!(expiresIn in EXPIRY_MS)) {
-    return NextResponse.json({ error: "invalid expiresIn" }, { status: 400 });
+
+  // 1. Identify the caller via the user-scoped server client.
+  const userScoped = await getSupabaseServer();
+  const {
+    data: { user },
+  } = await userScoped.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const pb = await getAdminPocketBase();
-  // Trust only the user record id from the user's own auth record.
-  // We use the admin PB to verify the resource belongs to the same
-  // user before creating the share.
-  let userId: string;
-  try {
-    const user = await pb.collection("users").getFirstListItem(
-      // The pb_auth cookie is the user's own JWT.
-      `id = "${parseJwtSub(pbAuthCookie)}"`,
-    );
-    userId = user.id;
-  } catch {
-    return NextResponse.json({ error: "Invalid user" }, { status: 401 });
+  // 2. Confirm they actually own the project (RLS already scopes this,
+  //    but a maybeSingle() with no rows would be ambiguous vs. an
+  //    actual error, so we check explicitly).
+  const { data: project, error: projectErr } = await userScoped
+    .from("projects")
+    .select("id,user_id")
+    .eq("id", resourceId)
+    .maybeSingle();
+  if (projectErr) {
+    return NextResponse.json({ error: projectErr.message }, { status: 500 });
+  }
+  if (!project || project.user_id !== user.id) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
-  try {
-    const project = await pb.collection("projects").getOne(body.resourceId);
-    if (project.user !== userId) {
-      return NextResponse.json({ error: "Not the resource owner" }, { status: 403 });
+  // 3. Generate a token and insert via the admin client (RLS would
+  //    allow this anyway because created_by = auth.uid(), but admin
+  //    keeps the API surface consistent).
+  const admin = getSupabaseAdmin();
+  let token = generateShareToken();
+  // Token has a 16-64 char CHECK constraint; our generator produces
+  // 32 chars (24 bytes → 32 base64url chars), so we're always safe.
+  for (let i = 0; i < 5; i++) {
+    const { data, error } = await admin
+      .from("shares")
+      .insert({
+        token,
+        resource_id: resourceId,
+        created_by: user.id,
+        label,
+        expires_at: expiresAt,
+      })
+      .select(
+        "id,token,resource_id,created_by,expires_at,revoked,view_count,label,created_at,updated_at",
+      )
+      .single();
+    if (!error && data) {
+      return NextResponse.json({
+        id: data.id,
+        token: data.token,
+        resourceId: data.resource_id,
+        createdBy: data.created_by,
+        expiresAt: data.expires_at,
+        revoked: data.revoked,
+        viewCount: data.view_count,
+        label: data.label,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      });
     }
-  } catch {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    if (error?.code !== "23505") {
+      // 23505 = unique_violation; anything else is a real error.
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    token = generateShareToken();
   }
-
-  const ms = EXPIRY_MS[expiresIn]!;
-  const expiresAt = ms ? new Date(Date.now() + ms).toISOString() : null;
-
-  const token = randomToken(18);
-  const record = await pb.collection("shares").create({
-    token,
-    resource: body.resourceId,
-    created_by: userId,
-    expires_at: expiresAt,
-    revoked: false,
-    view_count: 0,
-  });
-
-  const origin = req.nextUrl.origin;
-  return NextResponse.json({
-    id: record.id,
-    token,
-    url: `${origin}/share/${token}`,
-    expiresAt,
-  });
-}
-
-/** Extract the `id` claim (PB stores the user id there) from a JWT. */
-function parseJwtSub(jwt: string): string | null {
-  try {
-    const part = jwt.split(".")[1];
-    if (!part) return null;
-    const padded = part.replace(/-/g, "+").replace(/_/g, "/");
-    const json = atob(padded);
-    const obj = JSON.parse(json);
-    return obj.id || null;
-  } catch {
-    return null;
-  }
+  return NextResponse.json(
+    { error: "could not allocate a unique token, try again" },
+    { status: 500 },
+  );
 }

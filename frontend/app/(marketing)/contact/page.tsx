@@ -1,6 +1,6 @@
 "use client";
-
 import * as React from "react";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { z } from "zod";
 import { Mail, MessageSquare, Clock } from "lucide-react";
 import { Hero } from "@/components/marketing/hero";
@@ -39,15 +39,14 @@ export default function ContactPage() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/pb/api/collections/contact_messages/records", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Request failed with ${res.status}`);
-      }
+      // RLS allows anon INSERT into contact_messages; the anon key
+      // is enough. We post directly from the browser to Supabase
+      // (no Next.js route needed, no token round-trip).
+      const supabase = getSupabaseBrowser();
+      const { error } = await supabase
+        .from("contact_messages")
+        .insert(parsed.data);
+      if (error) throw error;
       toast({
         title: "Message sent",
         description: "We'll get back to you within one business day.",

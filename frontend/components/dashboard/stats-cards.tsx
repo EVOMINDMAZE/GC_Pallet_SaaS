@@ -13,36 +13,39 @@ import type { DashboardRange } from "@/hooks/useDashboardData";
 const RANGE_DAYS: Record<DashboardRange, number> = { "7d": 7, "30d": 30, all: 30 };
 
 export function StatsCards({ range }: { range: DashboardRange }) {
-  const days = RANGE_DAYS[range];
-  const since = useSince(range);
-  const prevSince = usePrevSince(range);
-
-  const projQ = useProjects({ createdAfter: since });
-  const docsQ = useDocuments({ uploadedAfter: since });
-  const invQ = useInventory({ updatedAfter: since });
-  const prevProjQ = useProjects({ createdAfter: prevSince });
-  const prevDocsQ = useDocuments({ uploadedAfter: prevSince });
-  const prevInvQ = useInventory({ updatedAfter: since });
+  // The hooks always return the user's full data; we slice on the
+  // client using the `range` prop. (Doing a server-side date filter
+  // would require either a Postgres view or RPC, neither of which
+  // we need for the free-tier volume we're at.)
+  const projQ = useProjects();
+  const docsQ = useDocuments();
+  const invQ = useInventory();
   const allProjQ = useProjects();
 
   const projects = projQ.data ?? [];
   const documents = docsQ.data ?? [];
   const inventory = invQ.data ?? [];
-  const prevProjects = prevProjQ.data ?? [];
-  const prevDocs = prevDocsQ.data ?? [];
-  const prevInv = prevInvQ.data ?? [];
   const allProjects = allProjQ.data ?? [];
 
-  const totalBudget = (allProjects ?? []).reduce((sum, p) => sum + (p.budget ?? 0), 0);
-  const activeProjects = (allProjects ?? []).filter((p) => p.status === "active").length;
+  const days = RANGE_DAYS[range];
+  const sinceMs = range === "all" ? 0 : Date.now() - days * 24 * 60 * 60 * 1000;
+  const inRange = (iso?: string | null) =>
+    !iso ? false : new Date(iso).getTime() >= sinceMs;
 
-  const projSpark = bucketByDay(projects, days).map((b) => b.count);
-  const docSpark = bucketByDay(documents, days, "uploaded_at").map((b) => b.count);
-  const invSpark = bucketByDay(invQ.data ?? [], days, "last_updated").map((b) => b.count);
+  const filteredProjects = projects.filter((p) => inRange(p.createdAt));
+  const filteredDocuments = documents.filter((d) => inRange(d.uploadedAt));
+  const filteredInventory = inventory.filter((i) => inRange(i.lastUpdated));
 
-  const projDelta = pctDelta(projects.length, prevProjects.length);
-  const docDelta = pctDelta(documents.length, prevDocs.length);
-  const invDelta = pctDelta(inventory.length, prevInv.length);
+  const totalBudget = allProjects.reduce((sum, p) => sum + (p.budget ?? 0), 0);
+  const activeProjects = allProjects.filter((p) => p.status === "active").length;
+
+  const projSpark = bucketByDay(filteredProjects, days, "createdAt").map((b) => b.count);
+  const docSpark = bucketByDay(filteredDocuments, days, "uploadedAt").map((b) => b.count);
+  const invSpark = bucketByDay(filteredInventory, days, "lastUpdated").map((b) => b.count);
+
+  const projDelta = pctDelta(filteredProjects.length, 0);
+  const docDelta = pctDelta(filteredDocuments.length, 0);
+  const invDelta = pctDelta(filteredInventory.length, 0);
 
   const isLoading = projQ.isLoading || docsQ.isLoading || invQ.isLoading || allProjQ.isLoading;
   if (isLoading) {
@@ -59,22 +62,22 @@ export function StatsCards({ range }: { range: DashboardRange }) {
         icon={<FolderKanban className="h-5 w-5" />}
         label="Active Projects"
         value={activeProjects}
-        caption={`${projects.length} new ${range === "all" ? "total" : "in period"}`}
+        caption={`${filteredProjects.length} new ${range === "all" ? "total" : "in period"}`}
         trend={{ label: projDelta.text, variant: projDelta.positive ? "success" : "warning" }}
         aside={<Sparkline values={projSpark} />}
       />
       <StatCard
         icon={<FileText className="h-5 w-5" />}
         label="Documents"
-        value={documents.length}
-        caption={`of ${prevDocs.length + documents.length} trend`}
+        value={filteredDocuments.length}
+        caption={`of ${documents.length} total`}
         trend={{ label: docDelta.text, variant: docDelta.positive ? "success" : "info" }}
         aside={<Sparkline values={docSpark} stroke="hsl(var(--info))" />}
       />
       <StatCard
         icon={<Package className="h-5 w-5" />}
         label="Inventory Items"
-        value={inventory.length}
+        value={filteredInventory.length}
         caption="Across active job sites"
         trend={{ label: invDelta.text, variant: invDelta.positive ? "success" : "warning" }}
         aside={<Sparkline values={invSpark} stroke="hsl(var(--success))" />}
@@ -88,20 +91,4 @@ export function StatsCards({ range }: { range: DashboardRange }) {
       />
     </div>
   );
-}
-
-function useSince(range: DashboardRange): string | undefined {
-  if (range === "all") return undefined;
-  const days = RANGE_DAYS[range];
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().replace(/\.\d{3}Z$/, "Z");
-}
-
-function usePrevSince(range: DashboardRange): string | undefined {
-  if (range === "all") return undefined;
-  const days = RANGE_DAYS[range];
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days * 2);
-  return d.toISOString().replace(/\.\d{3}Z$/, "Z");
 }

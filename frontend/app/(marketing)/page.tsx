@@ -1,5 +1,4 @@
 "use client";
-
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Hero } from "@/components/marketing/hero";
@@ -8,19 +7,20 @@ import { FeatureCard } from "@/components/marketing/feature-card";
 import { CtaBanner } from "@/components/marketing/cta-banner";
 import { ProductMockup } from "@/components/marketing/product-mockup";
 import { FAQ } from "@/components/marketing/faq";
-import { getPocketBase } from "@/lib/pocketbase";
+import { useAuth } from "@/hooks/useAuth";
 import { FolderKanban, Files, Truck, Workflow } from "lucide-react";
 
 export default function MarketingHome() {
   const router = useRouter();
-  // If signed in, push to the dashboard. We do this client-side because PB
-  // auth lives in localStorage (not a cookie), so we can't gate on the server.
+  // If signed in, push to the dashboard. Supabase stores the session
+  // in cookies (set by the SSR client) so we can check on the client
+  // once the AuthProvider has hydrated.
+  const { isAuthenticated, isLoading } = useAuth();
   React.useEffect(() => {
-    const pb = getPocketBase();
-    if (pb.authStore.model) {
+    if (!isLoading && isAuthenticated) {
       router.replace("/dashboard");
     }
-  }, [router]);
+  }, [router, isLoading, isAuthenticated]);
 
   return (
     <>
@@ -94,7 +94,7 @@ export default function MarketingHome() {
               },
               {
                 q: "Where is my data stored?",
-                a: "In a PocketBase instance hosted alongside the app. You can self-host or use our hosted version — both are encrypted at rest.",
+                a: "On Supabase Postgres with row-level security, hosted in the US East region. Files are stored in Supabase Storage. You can export everything at any time.",
               },
               {
                 q: "Can I import existing projects?",

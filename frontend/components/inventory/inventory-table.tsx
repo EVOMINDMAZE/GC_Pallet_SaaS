@@ -1,91 +1,103 @@
 "use client";
-import { useRouter } from "next/navigation";
+import * as React from "react";
+import { deleteInventoryItem } from "@/hooks/useInventory";
+import type { InventoryItem } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 import {
   Table,
-  TableHeader,
-  TableRow,
-  TableHead,
   TableBody,
   TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Package } from "lucide-react";
-import { getPocketBase } from "@/lib/pocketbase";
-import { toastVariants_enum as toast } from "@/components/ui/toaster";
-import { formatCurrency, formatDate } from "@/lib/format";
-import type { InventoryRecord } from "@/lib/types";
+import { toast } from "@/components/ui/toaster";
+import { Loader2, Trash2 } from "lucide-react";
+import { formatDistanceToNow } from "@/lib/date";
 
-export function InventoryTable({ items }: { items: InventoryRecord[] }) {
-  const router = useRouter();
+export function InventoryTable({
+  items,
+  onChanged,
+}: {
+  items: InventoryItem[];
+  onChanged?: () => void;
+}) {
+  const [pending, setPending] = React.useState<string | null>(null);
 
-  async function onDelete(id: string) {
-    if (!confirm("Delete this item?")) return;
+  const onDelete = async (id: string, name: string) => {
+    if (!window.confirm(`Delete inventory item "${name}"?`)) return;
+    setPending(id);
     try {
-      await getPocketBase().collection("inventory").delete(id);
-      toast.success("Deleted");
-      router.refresh();
-      window.location.reload();
-    } catch (err) {
-      toast.destructive("Error", err instanceof Error ? err.message : "Delete failed");
+      await deleteInventoryItem(id);
+      toast({ title: "Item deleted" });
+      onChanged?.();
+    } catch (e) {
+      toast({
+        title: "Could not delete",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setPending(null);
     }
-  }
+  };
 
   if (items.length === 0) {
     return (
-      <EmptyState
-        icon={<Package className="h-6 w-6" />}
-        title="No inventory yet"
-        description="Add materials using the form above. They'll be assigned to your active project."
-      />
+      <div className="rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
+        No inventory items yet. Add the first one above.
+      </div>
     );
   }
 
-  const totalValue = items.reduce(
-    (sum, it) => sum + (typeof it.cost_per_unit === "number" ? it.cost_per_unit : 0) * it.quantity,
-    0
-  );
-
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-gcpallet-card shadow-sm">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-gcpallet-muted/50">
-            <TableHead>Item</TableHead>
-            <TableHead className="text-right">Qty</TableHead>
-            <TableHead>Unit</TableHead>
-            <TableHead>Location</TableHead>
-            <TableHead className="text-right">Cost / unit</TableHead>
-            <TableHead>Updated</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Item</TableHead>
+          <TableHead className="text-right">Quantity</TableHead>
+          <TableHead>Unit</TableHead>
+          <TableHead>Location</TableHead>
+          <TableHead className="text-right">Cost / unit</TableHead>
+          <TableHead>Last updated</TableHead>
+          <TableHead className="w-12" />
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {items.map((item) => (
+          <TableRow key={item.id}>
+            <TableCell className="font-medium">{item.itemName}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              {item.quantity}
+            </TableCell>
+            <TableCell>{item.unit}</TableCell>
+            <TableCell>{item.location.replace("_", " ")}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              {item.costPerUnit != null
+                ? `$${item.costPerUnit.toFixed(2)}`
+                : "—"}
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {formatDistanceToNow(item.lastUpdated)}
+            </TableCell>
+            <TableCell>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onDelete(item.id, item.itemName)}
+                disabled={pending === item.id}
+                aria-label="Delete item"
+              >
+                {pending === item.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </Button>
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((it) => (
-            <TableRow key={it.id} className="hover:bg-gcpallet-muted/40">
-              <TableCell className="font-medium text-foreground">{it.item_name}</TableCell>
-              <TableCell className="text-right tabular-nums">{it.quantity}</TableCell>
-              <TableCell className="capitalize text-muted-foreground">{it.unit}</TableCell>
-              <TableCell className="capitalize text-muted-foreground">
-                {it.location.replace("_", " ")}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{formatCurrency(it.cost_per_unit)}</TableCell>
-              <TableCell className="text-muted-foreground">{formatDate(it.last_updated)}</TableCell>
-              <TableCell className="text-right">
-                <Button size="sm" variant="destructive" onClick={() => onDelete(it.id)}>
-                  Delete
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <div className="flex items-center justify-between border-t border-border bg-gcpallet-muted/40 px-4 py-3">
-        <span className="text-label uppercase tracking-wider text-muted-foreground">Total value</span>
-        <span className="text-h3 font-bold tabular-nums text-foreground">
-          {formatCurrency(totalValue)}
-        </span>
-      </div>
-    </div>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

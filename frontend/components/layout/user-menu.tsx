@@ -1,60 +1,61 @@
 "use client";
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogOut, UserCog } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getPocketBase } from "@/lib/pocketbase";
-import { useAuth } from "@/hooks/useAuth";
-import { toast } from "@/components/ui/toaster";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function initialsFor(name: string, email: string | undefined): string {
+  const base = name || email || "?";
+  const parts = base.split(/[\s@.]+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
 
 export function UserMenu() {
-  const { user } = useAuth();
-  const router = useRouter();
-  // Defer user-dependent label until after mount so the server
-  // (no auth context) and first client paint match exactly.
+  const { user, isLoading, signOut } = useAuth();
+  // Mounted-guard: the server can't know the user's name, so we
+  // render a neutral placeholder on the first paint and the real
+  // avatar once the client has hydrated.
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
-  async function logout() {
-    const pb = getPocketBase();
-    pb.authStore.clear();
-    toast({ title: "Signed out" });
-    router.push("/login");
-    router.refresh();
+  if (!mounted || isLoading) {
+    return <Skeleton className="h-9 w-9 rounded-full" />;
   }
-
+  if (!user) return null;
+  const displayName =
+    (user.user_metadata?.name as string | undefined) ??
+    user.email?.split("@")[0] ??
+    "";
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
-          {mounted ? (user?.name ?? user?.email ?? "Account") : "Account"}
-        </Button>
+      <DropdownMenuTrigger className="rounded-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+        <Avatar>
+          <AvatarFallback>{initialsFor(displayName, user.email)}</AvatarFallback>
+        </Avatar>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {mounted && user && (
-          <>
-            <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        <DropdownMenuItem asChild>
-          <Link href="/settings">
-            <UserCog className="mr-2 h-4 w-4" /> Account settings
-          </Link>
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium">{displayName}</span>
+            <span className="text-xs text-muted-foreground">{user.email}</span>
+          </div>
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={logout}>
-          <LogOut className="mr-2 h-4 w-4" /> Sign out
+        <DropdownMenuItem asChild>
+          <Link href="/settings">Settings</Link>
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={signOut}>Sign out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -3,7 +3,7 @@ import { useDocuments } from "@/hooks/useDocuments";
 import { useProjects } from "@/hooks/useProjects";
 import { useSearchParams } from "next/navigation";
 import * as React from "react";
-import { UploadModal } from "@/components/documents/upload-modal";
+import { UploadDocumentModal } from "@/components/documents/upload-modal";
 import { DocumentList } from "@/components/documents/document-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,7 +32,7 @@ function DocumentsPageInner() {
   const [projectFilter, setProjectFilter] = React.useState<string>(initialProject);
   const [uploadOpen, setUploadOpen] = React.useState(false);
   const { data: documents, isLoading } = useDocuments(
-    projectFilter !== "all" ? { projectId: projectFilter } : undefined
+    projectFilter !== "all" ? { projectId: projectFilter } : undefined,
   );
   const { data: projects } = useProjects();
   const hasProjects = (projects?.length ?? 0) > 0;
@@ -77,11 +77,19 @@ function DocumentsPageInner() {
       {isLoading ? (
         <TableSkeleton rows={4} cols={4} />
       ) : (
-        <DocumentList documents={documents ?? []} onUpload={() => setUploadOpen(true)} />
+        <DocumentList
+          documents={documents ?? []}
+          onChanged={() => setUploadOpen(true)}
+        />
       )}
 
-      {hasProjects && (
-        <UploadModal open={uploadOpen} onOpenChange={setUploadOpen} projects={projects ?? []} />
+      {hasProjects && projects && projects[0] && (
+        <UploadDocumentModal
+          projectId={projectFilter !== "all" ? projectFilter : projects[0].id}
+          open={uploadOpen}
+          onOpenChange={setUploadOpen}
+          onUploaded={() => setUploadOpen(false)}
+        />
       )}
     </div>
   );

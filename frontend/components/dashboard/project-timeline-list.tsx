@@ -39,7 +39,7 @@ export function ProjectTimelineList() {
         ) : (
           <ul className="space-y-4">
             {items.map((p) => {
-              const { pct, status } = progress(p.start_date, p.end_date);
+              const { pct, status } = progress(p.startDate ?? undefined, p.endDate ?? undefined);
               return (
                 <li key={p.id}>
                   <div className="flex items-center justify-between gap-3">
@@ -64,7 +64,7 @@ export function ProjectTimelineList() {
                     />
                   </div>
                   <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>{p.start_date ?? "—"} → {p.end_date ?? "—"}</span>
+                    <span>{p.startDate ?? "—"} → {p.endDate ?? "—"}</span>
                     <span className="font-medium tabular-nums">
                       {status === "future" ? "Not started" : status === "done" ? "Complete" : `${pct}%`}
                     </span>

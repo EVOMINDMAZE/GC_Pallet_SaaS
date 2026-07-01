@@ -1,29 +1,58 @@
 "use client";
+import * as React from "react";
 import { useRouter } from "next/navigation";
+import { deleteProject } from "@/hooks/useProjects";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
-import { getPocketBase } from "@/lib/pocketbase";
-import { toastVariants_enum as toast } from "@/components/ui/toaster";
+import { toast } from "@/components/ui/toaster";
+import { Loader2, Trash2 } from "lucide-react";
 
-export function ProjectActions({ projectId }: { projectId: string }) {
+export function DeleteProjectButton({
+  projectId,
+  projectName,
+}: {
+  projectId: string;
+  projectName: string;
+}) {
   const router = useRouter();
+  const [busy, setBusy] = React.useState(false);
 
-  async function onDelete() {
-    if (!confirm("Delete this project and its documents/inventory?")) return;
+  const onClick = async () => {
+    if (
+      !window.confirm(
+        `Delete project "${projectName}"? This also removes its inventory and documents.`,
+      )
+    )
+      return;
+    setBusy(true);
     try {
-      const pb = getPocketBase();
-      await pb.collection("projects").delete(projectId);
-      toast.success("Project deleted");
+      await deleteProject(projectId);
+      toast({ title: "Project deleted" });
       router.push("/projects");
       router.refresh();
-    } catch (err) {
-      toast.destructive("Error", err instanceof Error ? err.message : "Delete failed");
+    } catch (e) {
+      toast({
+        title: "Could not delete project",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
     }
-  }
+  };
 
   return (
-    <Button variant="destructive" size="sm" onClick={onDelete}>
-      <Trash2 className="mr-2 h-4 w-4" /> Delete
+    <Button
+      variant="destructive"
+      onClick={onClick}
+      disabled={busy}
+      className="gap-2"
+    >
+      {busy ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Trash2 className="h-4 w-4" />
+      )}
+      Delete project
     </Button>
   );
 }

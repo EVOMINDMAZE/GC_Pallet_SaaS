@@ -2,37 +2,36 @@
 import { useProjects } from "@/hooks/useProjects";
 import { useDocuments } from "@/hooks/useDocuments";
 import { useInventory } from "@/hooks/useInventory";
-import type { DocumentsRecord, InventoryRecord, ProjectsRecord } from "@/lib/types";
-
-export type DashboardRange = "7d" | "30d" | "all";
-
-export function dashboardRangeStart(range: DashboardRange): string | undefined {
-  if (range === "all") return undefined;
-  const days = range === "7d" ? 7 : 30;
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().replace(/\.\d{3}Z$/, "Z");
-}
+import type { Project, ProjectDocument, InventoryItem } from "@/lib/types";
 
 /**
- * Single combined hook for the dashboard. Fetches projects, documents and
- * inventory once each. Components can also call the specific hooks directly
- * if they need a different filter (e.g. inventory scoped to one project).
+ * Time-range filter for the dashboard. The actual data fetch is
+ * unpaginated (we use RLS to bound it by the signed-in user) — the
+ * range just controls how the cards and charts slice the data.
  */
-export function useDashboardData(range: DashboardRange) {
-  const since = dashboardRangeStart(range);
-  const projects = useProjects({ createdAfter: since });
-  const documents = useDocuments({ uploadedAfter: since });
-  const inventory = useInventory({ updatedAfter: since });
+export type DashboardRange = "7d" | "30d" | "all";
 
-  const anyLoading = projects.isLoading || documents.isLoading || inventory.isLoading;
-  const anyError = projects.error || documents.error || inventory.error;
+/**
+ * Combined dashboard data. We don't apply a date filter at the query
+ * level (the underlying hooks always return the user's full data) —
+ * the components slice client-side using the `range` prop.
+ */
+export function useDashboardData(_range: DashboardRange) {
+  const projects = useProjects();
+  const documents = useDocuments();
+  const inventory = useInventory();
 
   return {
-    projects: (projects.data ?? []) as ProjectsRecord[],
-    documents: (documents.data ?? []) as DocumentsRecord[],
-    inventory: (inventory.data ?? []) as InventoryRecord[],
-    isLoading: anyLoading,
-    error: anyError,
+    projects: (projects.data ?? []) as Project[],
+    documents: (documents.data ?? []) as ProjectDocument[],
+    inventory: (inventory.data ?? []) as InventoryItem[],
+    isLoading:
+      projects.isLoading || documents.isLoading || inventory.isLoading,
+    error: projects.error ?? documents.error ?? inventory.error,
+    refresh: () => {
+      projects.refresh();
+      documents.refresh();
+      inventory.refresh();
+    },
   };
 }

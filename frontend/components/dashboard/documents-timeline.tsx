@@ -8,7 +8,7 @@ import { FileText } from "lucide-react";
 export function DocumentsTimeline({ days = 14 }: { days?: number }) {
   const { data: documents, isLoading } = useDocuments();
   const items = documents ?? [];
-  const series = bucketByDay(items, days, "uploaded_at");
+  const series = bucketByDay(items, days, "uploadedAt");
 
   return (
     <Card>

@@ -23,7 +23,7 @@ export function InventoryByLocation() {
   const items = inventory ?? [];
   const sums: Record<InventoryLocation, number> = { warehouse: 0, job_site: 0, in_transit: 0 };
   for (const it of items) {
-    const unit = typeof it.cost_per_unit === "number" ? it.cost_per_unit : 0;
+    const unit = typeof it.costPerUnit === "number" ? it.costPerUnit : 0;
     sums[it.location] += unit * it.quantity;
   }
   const total = Object.values(sums).reduce((a, b) => a + b, 0);

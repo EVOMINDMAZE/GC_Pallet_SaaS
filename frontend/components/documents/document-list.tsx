@@ -1,102 +1,118 @@
 "use client";
-import { useRouter } from "next/navigation";
+import * as React from "react";
+import { deleteDocument } from "@/hooks/useDocuments";
+import type { ProjectDocument } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 import {
   Table,
-  TableHeader,
-  TableRow,
-  TableHead,
   TableBody,
   TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { FileText, Upload } from "lucide-react";
-import { getPocketBase } from "@/lib/pocketbase";
-import { toastVariants_enum as toast } from "@/components/ui/toaster";
-import { formatDate } from "@/lib/format";
-import type { DocumentsRecord } from "@/lib/types";
+import { toast } from "@/components/ui/toaster";
+import { Download, Loader2, Trash2 } from "lucide-react";
 
-const CATEGORY_VARIANT: Record<string, "primary" | "info" | "warning" | "success" | "secondary" | "destructive"> = {
-  contract: "primary",
-  permit: "info",
-  invoice: "warning",
-  receipt: "secondary",
-  photo: "info",
-  other: "secondary",
-};
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 
-export function DocumentList({ documents, onUpload }: { documents: DocumentsRecord[]; onUpload?: () => void }) {
-  const router = useRouter();
+export function DocumentList({
+  documents,
+  onChanged,
+}: {
+  documents: ProjectDocument[];
+  onChanged?: () => void;
+}) {
+  const [pending, setPending] = React.useState<string | null>(null);
+
+  const onDelete = async (doc: ProjectDocument) => {
+    if (!window.confirm(`Delete document "${doc.name}"?`)) return;
+    setPending(doc.id);
+    try {
+      await deleteDocument(doc.id);
+      toast({ title: "Document deleted" });
+      onChanged?.();
+    } catch (e) {
+      toast({
+        title: "Could not delete",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setPending(null);
+    }
+  };
+
   if (documents.length === 0) {
     return (
-      <EmptyState
-        icon={<FileText className="h-6 w-6" />}
-        title="No documents uploaded yet"
-        description="Permit packages, contracts, and photos live here once you upload them."
-        action={
-          onUpload && (
-            <Button onClick={onUpload} variant="primary">
-              <Upload className="h-4 w-4" /> Upload first file
-            </Button>
-          )
-        }
-      />
+      <div className="rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
+        No documents yet. Upload the first one above.
+      </div>
     );
   }
 
-  async function onDelete(id: string) {
-    if (!confirm("Delete this document?")) return;
-    try {
-      await getPocketBase().collection("documents").delete(id);
-      toast.success("Deleted");
-      router.refresh();
-      window.location.reload();
-    } catch (err) {
-      toast.destructive("Error", err instanceof Error ? err.message : "Delete failed");
-    }
-  }
-
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-gcpallet-card shadow-sm">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-gcpallet-muted/50">
-            <TableHead>Name</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Uploaded</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {documents.map((d) => (
-            <TableRow key={d.id} className="hover:bg-gcpallet-muted/40">
-              <TableCell className="font-medium text-foreground">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  {d.name}
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge variant={CATEGORY_VARIANT[d.category] ?? "secondary"}>
-                  {d.category}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{formatDate(d.uploaded_at)}</TableCell>
-              <TableCell className="space-x-2 text-right">
-                <a href={getPocketBase().files.getUrl(d, d.file)} target="_blank" rel="noreferrer">
-                  <Button size="sm" variant="outline">
-                    Open
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>Category</TableHead>
+          <TableHead>File</TableHead>
+          <TableHead>Size</TableHead>
+          <TableHead>Uploaded</TableHead>
+          <TableHead className="w-24" />
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {documents.map((doc) => (
+          <TableRow key={doc.id}>
+            <TableCell className="font-medium">{doc.name}</TableCell>
+            <TableCell className="capitalize">{doc.category}</TableCell>
+            <TableCell className="text-muted-foreground">
+              {doc.fileName}
+            </TableCell>
+            <TableCell className="tabular-nums">
+              {formatBytes(doc.sizeBytes)}
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {new Date(doc.uploadedAt).toLocaleDateString()}
+            </TableCell>
+            <TableCell>
+              <div className="flex justify-end gap-1">
+                {doc.downloadUrl && (
+                  <Button variant="ghost" size="icon" asChild>
+                    <a
+                      href={doc.downloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Download document"
+                    >
+                      <Download className="h-4 w-4" />
+                    </a>
                   </Button>
-                </a>
-                <Button size="sm" variant="destructive" onClick={() => onDelete(d.id)}>
-                  Delete
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDelete(doc)}
+                  disabled={pending === doc.id}
+                  aria-label="Delete document"
+                >
+                  {pending === doc.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
                 </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

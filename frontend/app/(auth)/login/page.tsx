@@ -1,81 +1,126 @@
 "use client";
 import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ClipboardList, ShieldCheck } from "lucide-react";
-import { getPocketBase } from "@/lib/pocketbase";
-import { toastVariants_enum as toast } from "@/components/ui/toaster";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+
+const loginSchema = z.object({
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(1, "Password is required"),
+});
+type LoginValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [submitting, setSubmitting] = React.useState(false);
+  // useSearchParams suspends — wrap in <Suspense> so the chrome can paint.
+  return (
+    <React.Suspense fallback={null}>
+      <LoginInner />
+    </React.Suspense>
+  );
+}
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSubmitting(true);
-    const fd = new FormData(e.currentTarget);
-    try {
-      await getPocketBase()
-        .collection("users")
-        .authWithPassword(String(fd.get("email")), String(fd.get("password")));
-      toast.success("Welcome back");
-      router.push("/");
-      router.refresh();
-    } catch {
-      toast.destructive("Invalid credentials", "Check your email and password.");
-    } finally {
-      setSubmitting(false);
+function LoginInner() {
+  const router = useRouter();
+  const search = useSearchParams();
+  const next = search.get("next") ?? "/dashboard";
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  const onSubmit = handleSubmit(async (values) => {
+    setError(null);
+    setLoading(true);
+    const supabase = getSupabaseBrowser();
+    const { error } = await supabase.auth.signInWithPassword(values);
+    setLoading(false);
+    if (error) {
+      setError(error.message);
+      return;
     }
-  }
+    router.push(next);
+    router.refresh();
+  });
 
   return (
-    <Card className="w-full max-w-[400px]">
-      <CardHeader className="space-y-3">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-md bg-gcpallet-primary text-white shadow-sm">
-            <ClipboardList className="h-5 w-5" />
-          </span>
-          <div className="flex flex-col">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              GC Pallet
-            </span>
-            <span className="text-body-strong tracking-tight">Operations Hub</span>
-          </div>
-          <Badge variant="success" className="ml-auto">
-            <ShieldCheck className="h-3 w-3" /> Secure
-          </Badge>
-        </div>
-        <div>
-          <h1 className="text-h1 font-bold tracking-tight text-foreground">Sign in</h1>
-          <p className="text-sm text-muted-foreground">Use your email and password.</p>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <div className="grid gap-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" autoFocus required />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" name="password" type="password" required />
-          </div>
-          <Button className="w-full" type="submit" disabled={submitting}>
-            {submitting ? "Signing in…" : "Sign in"}
-          </Button>
-          <p className="pt-2 text-center text-sm text-muted-foreground">
-            New here?{" "}
-            <Link href="/register" className="font-medium text-gcpallet-primary hover:underline">
-              Create an account
-            </Link>
-          </p>
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Welcome back</CardTitle>
+          <CardDescription>
+            Sign in to your GC Pallet account to continue.
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                {...register("email")}
+              />
+              {errors.email && (
+                <p className="text-xs text-destructive">{errors.email.message}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                {...register("password")}
+              />
+              {errors.password && (
+                <p className="text-xs text-destructive">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
+          </CardContent>
+          <CardFooter className="flex flex-col gap-3">
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sign in
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              Don&apos;t have an account?{" "}
+              <Link className="font-medium underline" href="/register">
+                Create one
+              </Link>
+            </p>
+          </CardFooter>
         </form>
-      </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }

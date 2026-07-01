@@ -1,60 +1,48 @@
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getAdminPocketBase } from "@/lib/pb-admin";
-
-export const runtime = "nodejs";
+import { NextResponse, type NextRequest } from "next/server";
+import { getSupabaseServer } from "@/lib/supabase/server";
 
 /**
- * POST /api/shares/[token]/revoke
- * Soft-revokes a share. Only the owner can revoke. Identified by the
- * public token so the ShareDialog doesn't need to track record ids
- * separately.
+ * POST /api/shares/[token]/revoke — mark a share as revoked.
+ *
+ * Only the share's creator can revoke. RLS enforces this — the
+ * update policy on the shares table requires created_by = auth.uid(),
+ * so any non-owner attempt will fail with a 0-row update that we
+ * surface as a 404.
  */
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { token: string } },
+  { params }: { params: Promise<{ token: string }> },
 ) {
-  const cookieStore = cookies();
-  const pbAuthCookie = cookieStore.get("pb_auth")?.value;
-  if (!pbAuthCookie) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  const { token } = await params;
+  if (!token) {
+    return NextResponse.json({ error: "token required" }, { status: 400 });
+  }
+  const supabase = await getSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const pb = await getAdminPocketBase();
+  // RLS will scope the update to created_by = auth.uid(). If the
+  // caller isn't the creator, .single() returns an error (PGRST116
+  // = "no rows returned").
+  const { data, error } = await supabase
+    .from("shares")
+    .update({ revoked: true })
+    .eq("token", token)
+    .select("id")
+    .maybeSingle();
 
-  let userId: string;
-  try {
-    const user = await pb.collection("users").getFirstListItem(
-      `id = "${parseJwtSub(pbAuthCookie)}"`,
-    );
-    userId = user.id;
-  } catch {
-    return NextResponse.json({ error: "Invalid user" }, { status: 401 });
+  if (error && error.code === "PGRST116") {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
   }
-
-  try {
-    const share = await pb.collection("shares").getFirstListItem(
-      `token = "${params.token}"`,
-    );
-    if (share.created_by !== userId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    await pb.collection("shares").update(share.id, { revoked: true });
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
-
-function parseJwtSub(jwt: string): string | null {
-  try {
-    const part = jwt.split(".")[1];
-    if (!part) return null;
-    const padded = part.replace(/-/g, "+").replace(/_/g, "/");
-    const json = atob(padded);
-    const obj = JSON.parse(json);
-    return obj.id || null;
-  } catch {
-    return null;
+  if (!data) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
   }
+  return NextResponse.json({ ok: true });
 }
