@@ -32,7 +32,12 @@ function rowToItem(row: Raw): InventoryItem {
     unit: row.unit,
     location: row.location,
     costPerUnit: row.cost_per_unit,
-    lastUpdated: row.last_updated,
+    // `Last updated` in the list shows the row's real edit time
+    // (auto-bumped by the `inventory_set_updated_at` trigger). The
+    // separate `last_updated date` column is for the form's
+    // "Date verified" field and isn't surfaced here.
+    lastUpdated: row.updated_at,
+    lastVerified: row.last_updated,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -82,7 +87,7 @@ const projectFetcher = async (projectId: string) => {
       "id,user_id,project_id,item_name,quantity,unit,location,cost_per_unit,last_updated,created_at,updated_at",
     )
     .eq("project_id", projectId)
-    .order("last_updated", { ascending: false });
+    .order("updated_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(rowToItem);
 };
@@ -108,6 +113,11 @@ export interface InventoryInput {
   unit: InventoryUnit;
   location: InventoryLocation;
   costPerUnit?: number | null;
+  /**
+   * Optional "date verified" — written to the `last_updated date`
+   * column. If omitted, the DB defaults to `current_date`. The
+   * row's `updated_at` timestamp is auto-maintained by trigger.
+   */
   lastUpdated?: string;
 }
 
@@ -119,19 +129,22 @@ export async function createInventoryItem(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not signed in");
+  const payload: Record<string, unknown> = {
+    user_id: user.id,
+    project_id: input.projectId,
+    item_name: input.itemName,
+    quantity: input.quantity,
+    unit: input.unit,
+    location: input.location,
+    cost_per_unit: input.costPerUnit ?? null,
+  };
+  if (input.lastUpdated) payload.last_updated = input.lastUpdated;
   const { data, error } = await supabase
     .from("inventory")
-    .insert({
-      user_id: user.id,
-      project_id: input.projectId,
-      item_name: input.itemName,
-      quantity: input.quantity,
-      unit: input.unit,
-      location: input.location,
-      cost_per_unit: input.costPerUnit ?? null,
-      last_updated: input.lastUpdated ?? new Date().toISOString().slice(0, 10),
-    })
-    .select()
+    .insert(payload)
+    .select(
+      "id,user_id,project_id,item_name,quantity,unit,location,cost_per_unit,last_updated,created_at,updated_at",
+    )
     .single();
   if (error) throw error;
   return rowToItem(data);
@@ -142,18 +155,20 @@ export async function updateInventoryItem(
   patch: Partial<InventoryInput>,
 ): Promise<InventoryItem> {
   const supabase = getSupabaseBrowser();
+  const update: Record<string, unknown> = {};
+  if (patch.itemName !== undefined) update.item_name = patch.itemName;
+  if (patch.quantity !== undefined) update.quantity = patch.quantity;
+  if (patch.unit !== undefined) update.unit = patch.unit;
+  if (patch.location !== undefined) update.location = patch.location;
+  if (patch.costPerUnit !== undefined) update.cost_per_unit = patch.costPerUnit;
+  if (patch.lastUpdated !== undefined) update.last_updated = patch.lastUpdated;
   const { data, error } = await supabase
     .from("inventory")
-    .update({
-      item_name: patch.itemName,
-      quantity: patch.quantity,
-      unit: patch.unit,
-      location: patch.location,
-      cost_per_unit: patch.costPerUnit,
-      last_updated: patch.lastUpdated,
-    })
+    .update(update)
     .eq("id", id)
-    .select()
+    .select(
+      "id,user_id,project_id,item_name,quantity,unit,location,cost_per_unit,last_updated,created_at,updated_at",
+    )
     .single();
   if (error) throw error;
   return rowToItem(data);

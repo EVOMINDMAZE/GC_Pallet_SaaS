@@ -48,7 +48,13 @@ export interface InventoryItem {
   unit: InventoryUnit;
   location: InventoryLocation;
   costPerUnit: number | null;
+  /** Row's real last-edit timestamp (auto-bumped by trigger). Drives the
+   *  list's "Last updated" column. Full ISO 8601 string. */
   lastUpdated: string;
+  /** The "date verified" form field — written to the `last_updated date`
+   *  column. Empty string if the user hasn't set one. Date-only string
+   *  (e.g. "2026-07-01"). */
+  lastVerified: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -80,7 +80,7 @@ export function InventoryForm({
             unit: item.unit,
             location: item.location,
             costPerUnit: item.costPerUnit != null ? String(item.costPerUnit) : "",
-            lastUpdated: item.lastUpdated,
+            lastUpdated: item.lastVerified ?? "",
           }
         : DEFAULTS,
     });
@@ -216,8 +216,11 @@ export function InventoryForm({
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="lastUpdated">Last updated</Label>
+          <Label htmlFor="lastUpdated">Date verified</Label>
           <Input id="lastUpdated" type="date" {...register("lastUpdated")} />
+          <p className="text-xs text-muted-foreground">
+            Optional. The list shows the row&apos;s real last-edit time automatically.
+          </p>
         </div>
       </div>
       {error && (
