@@ -13,7 +13,57 @@ import type { PublicShareView } from "@/lib/types";
  * Uses the service_role key because RLS would otherwise block this
  * read — that's by design: a share link is meant to be reachable
  * without an account.
+ *
+ * Note on fetch: we go straight to PostgREST for the share lookup
+ * (not through `getSupabaseAdmin()`) with `cache: "no-store"`. The
+ * supabase-js admin client uses `cross-fetch`, which polyfills
+ * `globalThis.fetch` and therefore participates in Next.js's
+ * fetch-level cache. In production on Vercel that cache held a
+ * stale `revoked: false` response long after the row was revoked,
+ * so the public surface stayed open. Bypassing the cache on the
+ * read is the simplest reliable fix.
  */
+
+const SHARE_COLS =
+  "id,token,resource_id,created_by,expires_at,revoked,label,view_count";
+
+type ShareRow = {
+  id: string;
+  token: string;
+  resource_id: string;
+  created_by: string;
+  expires_at: string | null;
+  revoked: boolean;
+  label: string | null;
+  view_count: number | null;
+};
+
+async function fetchShare(token: string): Promise<ShareRow | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY",
+    );
+  }
+  const res = await fetch(
+    `${url}/rest/v1/shares?select=${SHARE_COLS}&token=eq.${encodeURIComponent(
+      token,
+    )}&limit=1`,
+    {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        // Be explicit: never let Next.js cache this read.
+      },
+      cache: "no-store",
+    },
+  );
+  if (!res.ok) return null;
+  const rows = (await res.json()) as ShareRow[];
+  return rows[0] ?? null;
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ token: string }> },
@@ -25,13 +75,11 @@ export async function GET(
       { status: 400 },
     );
   }
-  const admin = getSupabaseAdmin();
-  const { data: share, error: shareErr } = await admin
-    .from("shares")
-    .select("id,token,resource_id,created_by,expires_at,revoked,label,view_count")
-    .eq("token", token)
-    .maybeSingle();
-  if (shareErr) {
+
+  let share: ShareRow | null;
+  try {
+    share = await fetchShare(token);
+  } catch {
     return NextResponse.json(
       { ok: false, reason: "not_found" } satisfies PublicShareView,
       { status: 500 },
@@ -56,14 +104,11 @@ export async function GET(
     );
   }
 
-  // Increment view count (fire-and-forget; failure is non-fatal).
-  admin
-    .from("shares")
-    .update({ view_count: (share.view_count ?? 0) + 1 })
-    .eq("id", share.id)
-    .then(() => undefined);
-
-  // Load the project + owner.
+  // Load the project + owner. Use the admin client here — we only
+  // resolve a project we already know is referenced by a live share,
+  // and the response is force-no-store below so a stale project row
+  // can't linger.
+  const admin = getSupabaseAdmin();
   const { data: project, error: projErr } = await admin
     .from("projects")
     .select("id,name,address,status,user_id")
@@ -92,6 +137,29 @@ export async function GET(
       { status: 500 },
     );
   }
+  // Fire-and-forget increment; failure is non-fatal.
+  // Use direct fetch so it also bypasses any cache.
+  void (async () => {
+    try {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) return;
+      await fetch(`${url}/rest/v1/shares?id=eq.${share!.id}`, {
+        method: "PATCH",
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ view_count: (share!.view_count ?? 0) + 1 }),
+        cache: "no-store",
+      });
+    } catch {
+      // ignore
+    }
+  })();
+
   const docsWithUrls = await Promise.all(
     ((documents ?? []) as Array<{
       id: string;
@@ -127,8 +195,7 @@ export async function GET(
     documents: docsWithUrls,
     share: { label: share.label, expiresAt: share.expires_at },
   };
-  // Force no-store: a stale `revoked=true` here is the exact bug the
-  // PocketBase version had. See git history for the matching fix.
+  // Force no-store: a stale `revoked=true` here was the bug.
   return NextResponse.json(payload, {
     headers: { "Cache-Control": "no-store, max-age=0" },
   });
