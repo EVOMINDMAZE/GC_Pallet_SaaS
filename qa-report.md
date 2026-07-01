@@ -16,6 +16,8 @@
 
 **P0 Bugs found: 3** (document upload, public share page rendering, public share API not enforcing revoke)
 
+**P0-3 fix shipped in commit `8dd7aae`** — bypass the Next.js fetch cache on the share lookup. Verify with the curl script in `scripts/verify-revoke.sh` after deploy.
+
 ---
 
 ## 🐛 P0 Bugs
@@ -45,6 +47,16 @@
   1. Create a share, revoke it.
   2. `curl -i https://gc-pallet-saas-evomindmazes-projects.vercel.app/api/shares/<token>` → returns `200 OK` with the project data.
 - **Evidence:** Network capture during the test (request 154798.77 vs post-revoke call).
+
+### P0-3 fix (commit 8dd7aae, in main, pending deploy)
+- **Root cause:** `supabase-js` v2 uses `cross-fetch` to polyfill `globalThis.fetch`. On Vercel, Next.js's fetch-level cache then participates in the lookup, and that cache held a stale `revoked: false` response long after the row was updated. A direct `fetch()` against the same PostgREST URL with the same service_role key returned fresh data, confirming the supabase-js path was the problem.
+- **Fix:** In `frontend/app/api/shares/[token]/route.ts`, look up the share row with a direct `fetch()` to PostgREST and pass `cache: "no-store"`. The view-count increment is also moved to direct `fetch` so a warm node can't double-count. The rest of the route (project, profile, documents, signed URLs) stays on `getSupabaseAdmin()`.
+- **Verification after deploy:**
+  1. Create a fresh share in any project (Shares tab → New share).
+  2. `curl -i https://<host>/api/shares/<token>` → expect `200 OK` with `ok: true` payload.
+  3. Revoke the share in the UI.
+  4. `curl -i https://<host>/api/shares/<token>` → expect `410 Gone` with `{"ok":false,"reason":"revoked"}`.
+  5. Open the public URL in incognito → expect "Link revoked" terminal state.
 
 ---
 
@@ -158,9 +170,9 @@
 
 ## Recommended fixes (P0)
 
-1. **Documents form**: add a project selector to the upload modal (or scope the modal to a `projectId` like the per-project `Documents` tab already does). Verify the storage bucket policy allows the user to write to `<userId>/<file>` and that the documents-table RLS policy permits inserts when `project_id` matches a project the user owns.
-2. **Public share page**: capture the client-side error in the browser console to identify the React render-time crash; the API response is well-formed so the failure is in the page component (`/app/share/[token]/page.tsx` or similar).
-3. **Public share API**: add a `revoked = false` filter (and `expires_at` check) on the server route handler before returning the project payload; return HTTP 410 once revoked.
+1. ✅ **Documents form**: storage RLS policies added in `supabase/migrations/20260101000010_storage_policies.sql` (4 policies on `storage.objects`). Upload now works for allowed mime types (PDF, PNG, etc.). The text/plain "not supported" error is a separate mime-type check, not an RLS issue.
+2. ✅ **Public share page**: `app/share/[token]/shared-view.tsx` rewritten to match the actual `/api/shares/[token]` response shape (`{ ok, project, owner, documents, share }`). Terminal states for loading / unknown / revoked / expired / error are all rendered.
+3. ✅ **Public share API revoke**: see **P0-3 fix** above. Live in commit `8dd7aae`, pending deploy.
 
 ## Recommended follow-up
 
