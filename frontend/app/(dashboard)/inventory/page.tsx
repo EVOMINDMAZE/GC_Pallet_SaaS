@@ -16,6 +16,17 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import type { InventoryLocation } from "@/lib/types";
+
+const LOCATION_OPTIONS: { value: InventoryLocation | "all"; label: string }[] = [
+  { value: "all", label: "All locations" },
+  { value: "warehouse", label: "Warehouse" },
+  { value: "job_site", label: "On site" },
+  { value: "in_transit", label: "In transit" },
+];
+function isLocation(v: string | null): v is InventoryLocation {
+  return v === "warehouse" || v === "job_site" || v === "in_transit";
+}
 
 export default function InventoryPage() {
   // useSearchParams suspends — wrap in <Suspense> so the rest of the chrome paints first.
@@ -29,11 +40,14 @@ export default function InventoryPage() {
 function InventoryPageInner() {
   const params = useSearchParams();
   const initial = params.get("project") ?? "all";
+  const rawLoc = params.get("location");
+  const initialLocation: InventoryLocation | "all" = isLocation(rawLoc) ? rawLoc : "all";
   const [filter, setFilter] = React.useState<string>(initial);
   const { data: projects } = useProjects();
-  const { data: items, isLoading, refresh } = useInventory(
-    filter !== "all" ? { projectId: filter } : undefined,
-  );
+  const { data: items, isLoading, refresh } = useInventory({
+    projectId: filter !== "all" ? filter : undefined,
+    location: initialLocation,
+  });
   const isAllProjects = filter === "all";
   const activeProject = isAllProjects
     ? null
@@ -52,21 +66,40 @@ function InventoryPageInner() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex flex-col items-stretch gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2"><Package className="h-4 w-4" /> Filter</CardTitle>
-          <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-64">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All projects</SelectItem>
-              {projects?.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-3">
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger className="w-56" aria-label="Filter by project">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All projects</SelectItem>
+                {projects?.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={initialLocation}>
+              <SelectTrigger className="w-48" aria-label="Filter by location" disabled>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LOCATION_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {initialLocation !== "all" && (
+              <span className="text-xs text-muted-foreground">
+                Showing only <strong className="font-semibold text-foreground">{initialLocation.replace("_", " ")}</strong> items
+              </span>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {projects && projects.length === 0 ? (

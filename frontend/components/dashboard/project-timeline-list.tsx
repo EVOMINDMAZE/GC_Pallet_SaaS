@@ -42,33 +42,35 @@ export function ProjectTimelineList() {
               const { pct, status } = progress(p.startDate ?? undefined, p.endDate ?? undefined);
               return (
                 <li key={p.id}>
-                  <div className="flex items-center justify-between gap-3">
-                    <Link
-                      href={`/projects/${p.id}`}
-                      className="text-body-strong truncate text-foreground hover:text-gcpallet-primary"
-                    >
-                      {p.name}
-                    </Link>
-                    <StatusBadge status={p.status} />
-                  </div>
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gcpallet-muted">
-                    <div
-                      className={
-                        status === "done"
-                          ? "h-full bg-success"
-                          : status === "future"
-                          ? "h-full bg-info-soft"
-                          : "h-full bg-gcpallet-primary"
-                      }
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>{p.startDate ?? "—"} → {p.endDate ?? "—"}</span>
-                    <span className="font-medium tabular-nums">
-                      {status === "future" ? "Not started" : status === "done" ? "Complete" : `${pct}%`}
-                    </span>
-                  </div>
+                  <Link
+                    href={`/projects/${p.id}`}
+                    className="group block rounded-md -mx-2 px-2 py-1.5 transition hover:bg-gcpallet-muted/60"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-body-strong truncate text-foreground group-hover:text-gcpallet-primary">
+                        {p.name}
+                      </span>
+                      <StatusBadge status={p.status} />
+                    </div>
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gcpallet-muted">
+                      <div
+                        className={
+                          status === "done"
+                            ? "h-full bg-success"
+                            : status === "future"
+                            ? "h-full bg-info-soft"
+                            : "h-full bg-gcpallet-primary"
+                        }
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>{p.startDate ?? "—"} → {p.endDate ?? "—"}</span>
+                      <span className="font-medium tabular-nums">
+                        {status === "future" ? "Not started" : status === "done" ? "Complete" : `${pct}%`}
+                      </span>
+                    </div>
+                  </Link>
                 </li>
               );
             })}

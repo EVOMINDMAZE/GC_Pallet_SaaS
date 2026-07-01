@@ -1,7 +1,7 @@
 "use client";
 import { useDocuments } from "@/hooks/useDocuments";
 import { useProjects } from "@/hooks/useProjects";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import * as React from "react";
 import { UploadDocumentModal } from "@/components/documents/upload-modal";
 import { DocumentList } from "@/components/documents/document-list";
@@ -17,6 +17,16 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 
+type DocRange = "7d" | "30d" | "all";
+const RANGE_OPTIONS: { value: DocRange; label: string }[] = [
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "all", label: "All time" },
+];
+function isDocRange(v: string | null): v is DocRange {
+  return v === "7d" || v === "30d" || v === "all";
+}
+
 export default function DocumentsPage() {
   // useSearchParams suspends — wrap in <Suspense> so the chrome can paint first.
   return (
@@ -28,14 +38,26 @@ export default function DocumentsPage() {
 
 function DocumentsPageInner() {
   const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const initialProject = params.get("project") ?? "all";
+  const rawRange = params.get("range");
+  const initialRange: DocRange = isDocRange(rawRange) ? rawRange : "all";
   const [projectFilter, setProjectFilter] = React.useState<string>(initialProject);
   const [uploadOpen, setUploadOpen] = React.useState(false);
   const { data: documents, isLoading } = useDocuments(
-    projectFilter !== "all" ? { projectId: projectFilter } : undefined,
+    projectFilter !== "all" ? { projectId: projectFilter, range: initialRange } : { range: initialRange },
   );
   const { data: projects } = useProjects();
   const hasProjects = (projects?.length ?? 0) > 0;
+
+  const setRange = (next: DocRange) => {
+    const sp = new URLSearchParams(params.toString());
+    if (next === "all") sp.delete("range");
+    else sp.set("range", next);
+    const qs = sp.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   return (
     <div className="space-y-6">
@@ -55,7 +77,7 @@ function DocumentsPageInner() {
       </div>
 
       <Card>
-        <CardContent className="flex items-center gap-3 p-4">
+        <CardContent className="flex flex-wrap items-center gap-3 p-4">
           <FileText className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">Filter by project:</span>
           <Select value={projectFilter} onValueChange={setProjectFilter}>
@@ -67,6 +89,19 @@ function DocumentsPageInner() {
               {projects?.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="ml-2 text-sm text-muted-foreground">Time range:</span>
+          <Select value={initialRange} onValueChange={(v) => setRange(v as DocRange)}>
+            <SelectTrigger className="w-44" aria-label="Filter by time range">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {RANGE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
                 </SelectItem>
               ))}
             </SelectContent>

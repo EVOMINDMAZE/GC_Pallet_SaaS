@@ -43,65 +43,86 @@ export function RecentActivity() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Projects</CardTitle>
-          <FolderOpen className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{totalProjects}</div>
-          <p className="text-xs text-muted-foreground">
-            {topProjects[0]?.name ?? "No projects yet"}
-          </p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Inventory items</CardTitle>
-          <Package className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{totalItems}</div>
-          <p className="text-xs text-muted-foreground">
-            {topItems[0]?.itemName ?? "No items yet"}
-          </p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Latest project</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          {topProjects[0] ? (
-            <>
-              <Link
-                href={`/projects/${topProjects[0].id}`}
-                className="text-sm font-medium hover:underline"
-              >
-                {topProjects[0].name}
-              </Link>
-              <CardDescription className="mt-1">
-                {topProjects[0].status.replace("_", " ")} ·{" "}
-                {new Date(topProjects[0].updatedAt).toLocaleDateString()}
-              </CardDescription>
-            </>
-          ) : (
-            <CardDescription>No projects yet.</CardDescription>
-          )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Shares</CardTitle>
-          <Share2 className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <CardDescription>
-            Manage your active share links from the project page.
-          </CardDescription>
-        </CardContent>
-      </Card>
+      <Link
+        href="/projects"
+        className="group block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-gcpallet-primary/40"
+        aria-label="Open projects"
+      >
+        <Card className="transition group-hover:-translate-y-0.5 group-hover:ring-1 group-hover:ring-gcpallet-primary/30">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Projects</CardTitle>
+            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalProjects}</div>
+            <p className="text-xs text-muted-foreground">
+              {topProjects[0]?.name ?? "No projects yet"}
+            </p>
+          </CardContent>
+        </Card>
+      </Link>
+      <Link
+        href="/inventory"
+        className="group block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-gcpallet-primary/40"
+        aria-label="Open inventory"
+      >
+        <Card className="transition group-hover:-translate-y-0.5 group-hover:ring-1 group-hover:ring-gcpallet-primary/30">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Inventory items</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalItems}</div>
+            <p className="text-xs text-muted-foreground">
+              {topItems[0]?.itemName ?? "No items yet"}
+            </p>
+          </CardContent>
+        </Card>
+      </Link>
+      <Link
+        href={topProjects[0] ? `/projects/${topProjects[0].id}` : "/projects"}
+        className="group block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-gcpallet-primary/40"
+        aria-label={topProjects[0] ? `Open latest project ${topProjects[0].name}` : "Open projects"}
+      >
+        <Card className="transition group-hover:-translate-y-0.5 group-hover:ring-1 group-hover:ring-gcpallet-primary/30">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Latest project</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {topProjects[0] ? (
+              <>
+                <div className="text-sm font-medium text-foreground group-hover:text-gcpallet-primary">
+                  {topProjects[0].name}
+                </div>
+                <CardDescription className="mt-1">
+                  {topProjects[0].status.replace("_", " ")} ·{" "}
+                  {new Date(topProjects[0].updatedAt).toLocaleDateString()}
+                </CardDescription>
+              </>
+            ) : (
+              <CardDescription>No projects yet.</CardDescription>
+            )}
+          </CardContent>
+        </Card>
+      </Link>
+      <Link
+        href="/projects"
+        className="group block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-gcpallet-primary/40"
+        aria-label="Manage share links from a project"
+      >
+        <Card className="transition group-hover:-translate-y-0.5 group-hover:ring-1 group-hover:ring-gcpallet-primary/30">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Shares</CardTitle>
+            <Share2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <CardDescription>
+              Manage your active share links from the project page.
+            </CardDescription>
+          </CardContent>
+        </Card>
+      </Link>
     </div>
   );
 }

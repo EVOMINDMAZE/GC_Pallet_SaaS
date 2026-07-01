@@ -1,4 +1,5 @@
 "use client";
+import { useMemo } from "react";
 import useSWR from "swr";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useAuth } from "./useAuth";
@@ -92,20 +93,44 @@ const allFetcher = async () => {
 
 export interface UseDocumentsOptions {
   projectId?: string;
+  /**
+   * Time-range filter (deep-linked from the dashboard timeline).
+   * `7d` = last 7 days, `30d` = last 30 days, `all` (or undefined) = no
+   * date filter.
+   */
+  range?: "7d" | "30d" | "all";
+}
+
+function rangeToSinceIso(range: "7d" | "30d" | "all" | undefined): string | null {
+  if (!range || range === "all") return null;
+  const days = range === "7d" ? 7 : 30;
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 export function useDocuments(options?: UseDocumentsOptions | string) {
   // Backwards-compat: callers can pass either an options object
   // ({ projectId }) or, for legacy code, a bare projectId string.
-  const projectId =
-    typeof options === "string" ? options : options?.projectId;
+  const opts: UseDocumentsOptions =
+    typeof options === "string" ? { projectId: options } : options ?? {};
+  const { projectId, range } = opts;
   const { userId } = useAuth();
   const { data, error, isLoading, mutate } = useSWR<ProjectDocument[]>(
     userId ? (projectId ? ["documents", projectId] : "documents-all") : null,
     projectId ? () => projectFetcher(projectId) : allFetcher,
   );
+  // Apply the range filter on the client — the underlying query is
+  // the full set, and SWR caches it across all consumers of the same
+  // key. Cheap because `documents` is bounded by the user's RLS scope.
+  const sinceIso = rangeToSinceIso(range);
+  const filtered = useMemo(
+    () =>
+      sinceIso
+        ? (data ?? []).filter((d) => new Date(d.uploadedAt).getTime() >= new Date(sinceIso).getTime())
+        : data ?? [],
+    [data, sinceIso],
+  );
   return {
-    data: data ?? [],
+    data: filtered,
     isLoading,
     error,
     refresh: () => mutate(),

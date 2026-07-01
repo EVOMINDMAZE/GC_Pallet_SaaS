@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { FolderKanban, FileText, Package, DollarSign, Sparkles } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
 import { useDocuments } from "@/hooks/useDocuments";
@@ -56,39 +57,57 @@ export function StatsCards({ range }: { range: DashboardRange }) {
     );
   }
 
+  // Range forwarded to /documents so the list page can pre-select
+  // the same window the dashboard is currently showing.
+  const docsHref = `/documents?range=${range}`;
+  const cardLinkClass =
+    "group block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-gcpallet-primary/40";
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <StatCard
-        icon={<FolderKanban className="h-5 w-5" />}
-        label="Active Projects"
-        value={activeProjects}
-        caption={`${filteredProjects.length} new ${range === "all" ? "total" : "in period"}`}
-        trend={{ label: projDelta.text, variant: projDelta.positive ? "success" : "warning" }}
-        aside={<Sparkline values={projSpark} />}
-      />
-      <StatCard
-        icon={<FileText className="h-5 w-5" />}
-        label="Documents"
-        value={filteredDocuments.length}
-        caption={`of ${documents.length} total`}
-        trend={{ label: docDelta.text, variant: docDelta.positive ? "success" : "info" }}
-        aside={<Sparkline values={docSpark} stroke="hsl(var(--info))" />}
-      />
-      <StatCard
-        icon={<Package className="h-5 w-5" />}
-        label="Inventory Items"
-        value={filteredInventory.length}
-        caption="Across active job sites"
-        trend={{ label: invDelta.text, variant: invDelta.positive ? "success" : "warning" }}
-        aside={<Sparkline values={invSpark} stroke="hsl(var(--success))" />}
-      />
-      <StatCard
-        icon={<DollarSign className="h-5 w-5" />}
-        label="Total Budget"
-        value={formatCurrency(totalBudget)}
-        caption={`Across ${allProjects.length} project${allProjects.length === 1 ? "" : "s"}`}
-        aside={<Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden />}
-      />
+      <Link href="/projects?status=active" className={cardLinkClass} aria-label="Open active projects">
+        <StatCard
+          icon={<FolderKanban className="h-5 w-5" />}
+          label="Active Projects"
+          value={activeProjects}
+          caption={`${filteredProjects.length} new ${range === "all" ? "total" : "in period"}`}
+          trend={{ label: projDelta.text, variant: projDelta.positive ? "success" : "warning" }}
+          aside={<Sparkline values={projSpark} />}
+          className="transition group-hover:ring-1 group-hover:ring-gcpallet-primary/30 group-hover:-translate-y-0.5"
+        />
+      </Link>
+      <Link href={docsHref} className={cardLinkClass} aria-label="Open documents">
+        <StatCard
+          icon={<FileText className="h-5 w-5" />}
+          label="Documents"
+          value={filteredDocuments.length}
+          caption={`of ${documents.length} total`}
+          trend={{ label: docDelta.text, variant: docDelta.positive ? "success" : "info" }}
+          aside={<Sparkline values={docSpark} stroke="hsl(var(--info))" />}
+          className="transition group-hover:ring-1 group-hover:ring-gcpallet-primary/30 group-hover:-translate-y-0.5"
+        />
+      </Link>
+      <Link href="/inventory" className={cardLinkClass} aria-label="Open inventory">
+        <StatCard
+          icon={<Package className="h-5 w-5" />}
+          label="Inventory Items"
+          value={filteredInventory.length}
+          caption="Across active job sites"
+          trend={{ label: invDelta.text, variant: invDelta.positive ? "success" : "warning" }}
+          aside={<Sparkline values={invSpark} stroke="hsl(var(--success))" />}
+          className="transition group-hover:ring-1 group-hover:ring-gcpallet-primary/30 group-hover:-translate-y-0.5"
+        />
+      </Link>
+      <Link href="/projects" className={cardLinkClass} aria-label="Open projects">
+        <StatCard
+          icon={<DollarSign className="h-5 w-5" />}
+          label="Total Budget"
+          value={formatCurrency(totalBudget)}
+          caption={`Across ${allProjects.length} project${allProjects.length === 1 ? "" : "s"}`}
+          aside={<Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden />}
+          className="transition group-hover:ring-1 group-hover:ring-gcpallet-primary/30 group-hover:-translate-y-0.5"
+        />
+      </Link>
     </div>
   );
 }

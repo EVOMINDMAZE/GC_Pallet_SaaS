@@ -1,4 +1,5 @@
 "use client";
+import { useMemo } from "react";
 import useSWR from "swr";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useAuth } from "./useAuth";
@@ -58,20 +59,38 @@ const allFetcher = async () => {
 
 export interface UseInventoryOptions {
   projectId?: string;
+  /**
+   * Location filter (deep-linked from the inventory-by-location
+   * donut on the dashboard). When set, the returned list is
+   * restricted to items in that location.
+   */
+  location?: InventoryLocation | "all";
 }
+
+const VALID_LOCATIONS: InventoryLocation[] = ["warehouse", "job_site", "in_transit"];
 
 export function useInventory(options?: UseInventoryOptions | string) {
   // Backwards-compat: callers can pass either an options object
   // ({ projectId }) or, for legacy code, a bare projectId string.
-  const projectId =
-    typeof options === "string" ? options : options?.projectId;
+  const opts: UseInventoryOptions =
+    typeof options === "string" ? { projectId: options } : options ?? {};
+  const { projectId, location } = opts;
   const { userId } = useAuth();
   const { data, error, isLoading, mutate } = useSWR<InventoryItem[]>(
     userId ? (projectId ? ["inventory", projectId] : "inventory") : null,
     projectId ? () => projectFetcher(projectId) : allFetcher,
   );
+  // Location filter is applied client-side; the underlying fetch is
+  // shared across all consumers of the same key, and `inventory` is
+  // small enough that a single in-memory filter is fine.
+  const filtered = useMemo(() => {
+    const base = data ?? [];
+    if (!location || location === "all") return base;
+    if (!VALID_LOCATIONS.includes(location)) return base;
+    return base.filter((it) => it.location === location);
+  }, [data, location]);
   return {
-    data: data ?? [],
+    data: filtered,
     isLoading,
     error,
     refresh: () => mutate(),

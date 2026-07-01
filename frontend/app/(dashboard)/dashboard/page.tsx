@@ -31,7 +31,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ProjectStatusDonut />
-        <DocumentsTimeline days={range === "all" ? 30 : range === "7d" ? 7 : 14} />
+        <DocumentsTimeline range={range} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
