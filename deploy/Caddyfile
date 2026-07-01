@@ -1,0 +1,22 @@
+# Caddy v2 config for GC Pallet.
+#
+# 1. Set the DOMAIN env var (e.g. "gcpallet.example.com") before `docker compose up`.
+# 2. Caddy auto-issues a Let's Encrypt cert for that domain (DNS A must point
+#    at this VM's public IP first, otherwise the cert challenge fails).
+# 3. Public traffic: https://$DOMAIN/ → frontend (:3000)
+# 4. PB admin & SDK: https://$DOMAIN/api/pb/* → backend (:8090)
+# 5. Public share view: https://$DOMAIN/share/* → frontend (:3000)
+
+{$DOMAIN:localhost} {
+    encode zstd gzip
+
+    # Reverse-proxy the PocketBase SDK calls and admin UI through the same
+    # origin as the frontend, so the browser doesn't hit CORS or mixed-content.
+    reverse_proxy /api/pb/* backend:8090
+
+    # PB admin UI is also exposed under /_/ for convenience.
+    reverse_proxy /_/* backend:8090
+
+    # Everything else goes to the Next.js frontend.
+    reverse_proxy frontend:3000
+}

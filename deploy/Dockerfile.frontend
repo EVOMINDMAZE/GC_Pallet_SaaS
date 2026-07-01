@@ -1,0 +1,45 @@
+# Multi-stage build for the Next.js frontend.
+# Uses the project's pnpm-lock.yaml so the install is reproducible.
+
+# ---- 1. deps (cached) ----
+FROM node:20-bookworm-slim AS deps
+WORKDIR /app
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# ---- 2. build ----
+FROM node:20-bookworm-slim AS build
+WORKDIR /app
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable
+COPY package.json pnpm-lock.yaml ./
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# NEXT_PUBLIC_PB_URL is baked into the client at build time.
+# Pass --build-arg NEXT_PUBLIC_PB_URL=... when building, or set it in .env.
+ARG NEXT_PUBLIC_PB_URL
+ENV NEXT_PUBLIC_PB_URL=$NEXT_PUBLIC_PB_URL
+ARG POCKETBASE_URL
+ENV POCKETBASE_URL=$POCKETBASE_URL
+RUN pnpm build
+
+# ---- 3. runtime (standalone output) ----
+FROM node:20-bookworm-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+# `output: standalone` is enabled in next.config.mjs so we get a minimal
+# bundle (~50 MB instead of ~400 MB). Copy only the standalone folder.
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
+EXPOSE 3000
+# Tini for proper signal handling (graceful shutdown on `docker stop`).
+RUN apt-get update && apt-get install -y --no-install-recommends tini && rm -rf /var/lib/apt/lists/*
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["node", "server.js"]

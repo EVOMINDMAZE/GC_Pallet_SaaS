@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Standalone build produces a minimal server bundle for the Docker image.
+  // Without this, the runtime image would need to ship the whole `node_modules`.
+  output: "standalone",
   experimental: { serverActions: { bodySizeLimit: "55mb" } },
   // Proxy PocketBase so the SDK can call it on the same origin (avoids
   // mixed-content / cross-origin pain when the browser is on a preview URL).
