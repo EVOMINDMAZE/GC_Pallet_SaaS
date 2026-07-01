@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Wrapper that always passes --access-token.
+set -euo pipefail
+TOKEN="$(cat /tmp/fly_token.txt)"
+exec /root/.fly/bin/flyctl --access-token="$TOKEN" "$@"

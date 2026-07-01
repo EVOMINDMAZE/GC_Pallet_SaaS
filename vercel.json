@@ -1,7 +1,0 @@
-{
-  "version": 2,
-  "framework": "nextjs",
-  "buildCommand": "cd ../frontend && pnpm install --frozen-lockfile && pnpm build",
-  "installCommand": "cd ../frontend && pnpm install --frozen-lockfile",
-  "outputDirectory": "../frontend/.next"
-}
