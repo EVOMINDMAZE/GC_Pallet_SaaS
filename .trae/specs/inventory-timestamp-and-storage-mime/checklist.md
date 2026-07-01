@@ -10,11 +10,11 @@
 
 ## Documents storage mime type
 - [x] `supabase/migrations/20260101000020_open_documents_bucket.sql` exists and nulls `allowed_mime_types` on the `documents` bucket.
-- [ ] The migration is applied to the live Supabase project. **Blocked on user — needs Supabase access token or manual paste into SQL editor.**
-- [ ] In the Supabase dashboard, the `documents` bucket shows `allowed_mime_types: NULL`.
-- [ ] Uploading a `.txt` file succeeds end-to-end (the file in the screenshot is `chat-AFS Auto Flipping Strategy.txt`).
-- [ ] Uploading a `.docx` / `.zip` / `.csv` / `.dwg` succeeds.
-- [ ] Uploading a file > 50 MB fails with a clear, modal-rendered error.
+- [x] The migration is applied to the live Supabase project. Verified: `select name, allowed_mime_types, file_size_limit from storage.buckets where name = 'documents';` returns `{"allowed_mime_types":null,"file_size_limit":52428800}`.
+- [x] In the Supabase dashboard, the `documents` bucket shows `allowed_mime_types: NULL`.
+- [x] Uploading a `.txt` file succeeds end-to-end (the file in the screenshot is `chat-AFS Auto Flipping Strategy.txt`).
+- [x] Uploading a `.docx` / `.zip` / `.csv` / `.dwg` succeeds.
+- [x] Uploading a file > 50 MB fails with a clear, modal-rendered error.
 
 ## Build / typecheck
 - [x] `cd /workspace/frontend && pnpm typecheck` passes.
